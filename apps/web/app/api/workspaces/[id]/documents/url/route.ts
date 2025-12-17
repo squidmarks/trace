@@ -68,11 +68,13 @@ export async function POST(
     const arrayBuffer = await response.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Check size (100MB limit)
-    const maxSize = 100 * 1024 * 1024 // 100MB
+    // Check size (10MB limit - MongoDB has 16MB document limit, base64 adds ~33% overhead)
+    const maxSize = 10 * 1024 * 1024 // 10MB PDF ≈ 13.3MB base64 + metadata < 16MB MongoDB limit
     if (buffer.length > maxSize) {
       return NextResponse.json(
-        { error: "File size exceeds 100MB limit" },
+        { 
+          error: "File size exceeds 10MB limit (MongoDB constraint). For larger files, we'll add object storage in a future update." 
+        },
         { status: 400 }
       )
     }
@@ -142,6 +144,16 @@ export async function POST(
 
     if (error.message === "Owner access required") {
       return NextResponse.json({ error: error.message }, { status: 403 })
+    }
+
+    // Check for MongoDB size limit error
+    if (error.code === "ERR_OUT_OF_RANGE" || error.message?.includes("offset")) {
+      return NextResponse.json(
+        { 
+          error: "Document too large for MongoDB (16MB limit). Please use a smaller file or wait for object storage support." 
+        },
+        { status: 400 }
+      )
     }
 
     return NextResponse.json(
