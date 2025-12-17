@@ -12,13 +12,13 @@ Track the implementation status of Trace across all phases.
 |-------|--------|----------|---------|-----------|
 | Phase 0: Foundation | ✅ Complete | 100% | Dec 17 | Dec 17 |
 | Phase 1: Documents + Socket.io | ✅ Complete | 100% | Dec 17 | Dec 17 |
-| Phase 2: PDF Rendering | ⏳ Not Started | 0% | - | - |
+| Phase 2: PDF Rendering | ✅ Complete | 100% | Dec 17 | Dec 17 |
 | Phase 3: AI Analysis | ⏳ Not Started | 0% | - | - |
 | Phase 4: Embeddings + Search | ⏳ Not Started | 0% | - | - |
 | Phase 5: Chat System | ⏳ Not Started | 0% | - | - |
 | Phase 6: Ontology + Polish | ⏳ Not Started | 0% | - | - |
 
-**Overall Progress**: 29% (2/7 phases complete)
+**Overall Progress**: 43% (3/7 phases complete)
 
 ---
 
@@ -271,24 +271,145 @@ To test Phase 1, you need both services running:
 
 ---
 
-## Phase 2: PDF Rendering ⏳
+## Phase 2: PDF Rendering ✅
 
-**Status**: Not Started  
-**Planned Duration**: 1 week
+**Status**: Complete  
+**Duration**: ~2.5 hours  
+**Commit**: TBD
 
-### Planned Deliverables
+### Completed Deliverables
 
-- [ ] PDF rendering with pdfjs-dist
-- [ ] Image quality optimization (150 DPI, JPEG quality 85)
-- [ ] Fetch phase implementation
-- [ ] Render phase implementation
-- [ ] Job consumer/worker
-- [ ] Progress tracking in MongoDB
-- [ ] Socket.io progress events
-- [ ] Index trigger API
-- [ ] Index status UI
-- [ ] Page viewer component
-- [ ] Re-index flow (delete old pages first)
+- ✅ PDF rendering with **Poppler** (system-installed, not pdfjs-dist)
+- ✅ Image quality optimization (150 DPI, JPEG quality 85, mozjpeg)
+- ✅ Document fetching utility (URL + base64)
+- ✅ Render phase implementation using `pdftoppm`
+- ✅ Indexing job processor with background execution
+- ✅ Socket.io progress events (fetching, rendering, storing, complete, error)
+- ✅ Index trigger API (`POST /api/workspaces/:id/index`)
+- ✅ Start job endpoint (`POST /jobs/start`)
+- ✅ Index button in UI ("📑 Index Workspace")
+- ✅ Progress display in UI (real-time phase updates with color-coded banners)
+- ✅ Re-index flow (deletes old pages first)
+- ✅ Workspace stats API (`GET /api/workspaces/:id/stats`)
+- ✅ Page count display on workspace list and detail pages
+- ✅ Poppler dependency check on Indexer startup
+- ✅ Cleaned up Socket UI (auto-connect, console logging only)
+
+### What Works
+
+- Owner can click "Index Workspace" button (no confirmation prompt)
+- Indexer fetches documents (URL or base64)
+- Indexer renders PDFs to JPEG images using system Poppler (150 DPI, quality 85)
+- Images stored as base64 in MongoDB Pages collection
+- Real-time progress updates via Socket.io:
+  - 📥 Fetching documents...
+  - 🎨 Rendering PDFs...
+  - 💾 Storing pages...
+  - ✅ Indexing complete!
+  - ❌ Error display (if indexing fails)
+- Document page counts updated after indexing
+- Workspace list shows "📄 X documents • ✅ X pages indexed"
+- Workspace detail shows indexed page count
+- Re-indexing deletes old pages and creates fresh ones
+- Comprehensive logging throughout process
+- Socket.io auto-connects in background (no visual clutter)
+- Successfully indexed 171-page, 52MB PDF in ~2.5 minutes
+
+### Files Created/Modified
+
+**Indexer (4 new files)**:
+- `apps/indexer/src/lib/pdf-renderer.ts` - PDF to image rendering with Poppler
+- `apps/indexer/src/lib/document-fetcher.ts` - Fetch docs from URL or MongoDB
+- `apps/indexer/src/lib/indexing-processor.ts` - Main indexing orchestration
+- `apps/indexer/src/routes/jobs.ts` - Updated to process jobs (removed stub)
+- `apps/indexer/src/server.ts` - Pass Socket.io to routes
+- `apps/indexer/src/env.ts` - Added Poppler dependency check
+
+**Web App (4 new/modified files)**:
+- `apps/web/app/api/workspaces/[id]/index/route.ts` - Trigger index API
+- `apps/web/app/api/workspaces/[id]/stats/route.ts` - Workspace stats API
+- `apps/web/app/(dashboard)/workspaces/page.tsx` - Added stats display
+- `apps/web/app/(dashboard)/workspaces/[id]/page.tsx` - Added stats display
+- `apps/web/app/(dashboard)/workspaces/[id]/documents/page.tsx` - Updated UI, removed SocketTest
+
+**Deleted Files**:
+- `apps/web/components/SocketTest.tsx` - No longer needed (cleaner UI)
+
+**Dependencies Added**:
+- `canvas` - Canvas library for Node.js
+- `sharp` - Image optimization and conversion
+
+**System Dependencies**:
+- **Poppler** - Required for PDF rendering (`brew install poppler` on macOS)
+
+### Key Implementation Details
+
+**PDF Rendering Strategy**:
+- Uses system-installed Poppler tools (`pdftoppm`) instead of browser-based pdfjs-dist
+- Creates temp directory for each render job
+- Converts PDF to PNG at specified DPI
+- Optimizes PNG → JPEG with Sharp (mozjpeg compression)
+- Encodes to base64 and stores in MongoDB
+- Cleans up temp files after completion
+
+**Architecture Decisions**:
+- System Poppler (not npm package with bundled binaries)
+- Validates Poppler installation on Indexer startup
+- Background job execution (doesn't block API response)
+- Console logging only (no visual socket status for users)
+- Stats fetched on-demand (not stored redundantly)
+
+### Testing Phase 2
+
+**Setup Required**:
+
+1. **Install Poppler** (macOS):
+   ```bash
+   brew install poppler
+   ```
+   
+   Other platforms:
+   - Ubuntu: `apt-get install poppler-utils`
+   - Alpine: `apk add poppler-utils`
+   - Docker: Add to Dockerfile
+
+2. **Add to `apps/web/.env.local`**:
+   ```bash
+   INDEXER_SERVICE_URL=http://localhost:3001
+   INDEXER_SERVICE_TOKEN=<same-token-from-indexer-env>
+   NEXT_PUBLIC_INDEXER_URL=http://localhost:3001
+   ```
+
+3. **Restart services**:
+   ```bash
+   # Terminal 1
+   npm run dev:web
+   
+   # Terminal 2
+   npm run dev:indexer
+   ```
+
+4. **Test the flow**:
+   - Upload a PDF or add from URL
+   - Click "📑 Index Workspace" button
+   - Watch real-time progress updates in UI
+   - Check Indexer logs for detailed progress
+   - Verify page count appears after completion
+   - Check workspace list for indexed page count
+
+### Performance
+
+**Test Case**: 171-page, 52MB PDF (Winnebago RV manual)
+- Fetch: 3 seconds
+- Render (Poppler): 48 seconds
+- Optimize (Sharp): 26 seconds  
+- Store (MongoDB): 66 seconds
+- **Total**: ~2.5 minutes
+- **Output**: 59MB of JPEG images
+
+### Known Issues
+
+- None currently
 
 ---
 

@@ -10,10 +10,12 @@ export default function WorkspaceDetailPage() {
   const router = useRouter()
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [role, setRole] = useState<Role | null>(null)
+  const [stats, setStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     fetchWorkspace()
+    fetchStats()
   }, [params.id])
 
   const fetchWorkspace = async () => {
@@ -34,6 +36,18 @@ export default function WorkspaceDetailPage() {
       console.error("Error fetching workspace:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`/api/workspaces/${params.id}/stats`)
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error)
     }
   }
 
@@ -66,9 +80,24 @@ export default function WorkspaceDetailPage() {
             <div>
               <h1 className="text-3xl font-bold mb-2">{workspace.name}</h1>
               {workspace.description && (
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-600 dark:text-gray-400 mb-3">
                   {workspace.description}
                 </p>
+              )}
+              {stats && (stats.documentCount > 0 || stats.pageCount > 0) && (
+                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                  {stats.documentCount > 0 && (
+                    <span>📄 {stats.documentCount} {stats.documentCount === 1 ? 'document' : 'documents'}</span>
+                  )}
+                  {stats.pageCount > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="font-medium text-green-600 dark:text-green-400">
+                        ✅ {stats.pageCount} {stats.pageCount === 1 ? 'page' : 'pages'} indexed
+                      </span>
+                    </>
+                  )}
+                </div>
               )}
             </div>
             <span className="px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">

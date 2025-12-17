@@ -31,7 +31,24 @@ export default function WorkspacesPage() {
       if (!response.ok) throw new Error("Failed to fetch workspaces")
       
       const data = await response.json()
-      setWorkspaces(data.workspaces)
+      
+      // Fetch stats for each workspace
+      const workspacesWithStats = await Promise.all(
+        data.workspaces.map(async (ws: any) => {
+          try {
+            const statsRes = await fetch(`/api/workspaces/${ws._id}/stats`)
+            if (statsRes.ok) {
+              const stats = await statsRes.json()
+              return { ...ws, ...stats }
+            }
+          } catch (error) {
+            console.error(`Error fetching stats for ${ws._id}:`, error)
+          }
+          return ws
+        })
+      )
+      
+      setWorkspaces(workspacesWithStats)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -113,22 +130,16 @@ export default function WorkspacesPage() {
                 )}
 
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
-                  <span>
-                    Status:{" "}
-                    <span
-                      className={
-                        workspace.indexStatus === "ready"
-                          ? "text-green-600 dark:text-green-400"
-                          : workspace.indexStatus === "processing"
-                          ? "text-yellow-600 dark:text-yellow-400"
-                          : workspace.indexStatus === "failed"
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-gray-600 dark:text-gray-400"
-                      }
-                    >
-                      {workspace.indexStatus}
-                    </span>
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {(workspace as any).documentCount > 0 && (
+                      <span>📄 {(workspace as any).documentCount}</span>
+                    )}
+                    {(workspace as any).pageCount > 0 && (
+                      <span className="text-green-600 dark:text-green-400 font-medium">
+                        ✅ {(workspace as any).pageCount} pages
+                      </span>
+                    )}
+                  </div>
                   <span>
                     {new Date(workspace.updatedAt).toLocaleDateString()}
                   </span>

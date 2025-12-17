@@ -6,7 +6,6 @@ import Link from "next/link"
 import type { Document as TraceDocument, Workspace, Role } from "@trace/shared"
 import DocumentUpload from "@/components/DocumentUpload"
 import AddFromUrlModal from "@/components/AddFromUrlModal"
-import SocketTest from "@/components/SocketTest"
 
 export default function DocumentsPage() {
   const params = useParams()
@@ -15,10 +14,89 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<TraceDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showUrlModal, setShowUrlModal] = useState(false)
+  const [isIndexing, setIsIndexing] = useState(false)
+  const [indexProgress, setIndexProgress] = useState<any>(null)
 
   useEffect(() => {
     fetchWorkspace()
     fetchDocuments()
+
+    // Set up Socket.io connection and listeners
+    const setupSocket = async () => {
+      const { getSocket, connectSocket, joinWorkspace } = await import("@/lib/socket")
+      
+      const socket = getSocket()
+      
+      // Connect and join workspace room
+      connectSocket()
+      
+      socket.on("connect", () => {
+        console.log("[Socket.io] Connected to Indexer")
+        joinWorkspace(params.id as string).catch(console.error)
+      })
+
+      socket.on("disconnect", (reason) => {
+        console.log(`[Socket.io] Disconnected: ${reason}`)
+      })
+
+      // Index progress events
+      const handleIndexProgress = (data: any) => {
+        if (data.workspaceId === params.id) {
+          console.log("[Socket.io] Index progress:", data)
+          setIndexProgress(data)
+        }
+      }
+
+      const handleIndexComplete = (data: any) => {
+        if (data.workspaceId === params.id) {
+          console.log("[Socket.io] Index complete:", data)
+          setIsIndexing(false)
+          setIndexProgress({ phase: "complete", ...data })
+          fetchDocuments() // Refresh to show page counts
+          // Also refresh workspace info to update stats everywhere
+          setTimeout(() => {
+            setIndexProgress(null)
+            window.dispatchEvent(new Event("workspace-updated"))
+          }, 5000)
+        }
+      }
+
+      const handleIndexError = (data: any) => {
+        if (data.workspaceId === params.id) {
+          console.error("[Socket.io] Index error:", data)
+          setIsIndexing(false)
+          setIndexProgress({
+            phase: "error",
+            error: data.error || "Indexing failed",
+          })
+          setTimeout(() => setIndexProgress(null), 10000)
+        }
+      }
+
+      socket.on("index:progress", handleIndexProgress)
+      socket.on("index:complete", handleIndexComplete)
+      socket.on("index:error", handleIndexError)
+
+      return () => {
+        socket.off("connect")
+        socket.off("disconnect")
+        socket.off("index:progress", handleIndexProgress)
+        socket.off("index:complete", handleIndexComplete)
+        socket.off("index:error", handleIndexError)
+      }
+    }
+
+    let cleanup: (() => void) | undefined
+
+    if (typeof window !== "undefined") {
+      setupSocket().then((cleanupFn) => {
+        cleanup = cleanupFn
+      })
+    }
+
+    return () => {
+      cleanup?.()
+    }
   }, [params.id])
 
   const fetchWorkspace = async () => {
@@ -69,6 +147,35 @@ export default function DocumentsPage() {
     }
   }
 
+  const handleStartIndex = async () => {
+    setIsIndexing(true)
+    setIndexProgress(null)
+
+    try {
+      const response = await fetch(`/api/workspaces/${params.id}/index`, {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        console.error("Failed to start indexing:", error)
+        setIsIndexing(false)
+        setIndexProgress({
+          phase: "error",
+          error: error.error || "Failed to start indexing",
+        })
+      }
+      // Progress will be updated via Socket.io events
+    } catch (error) {
+      console.error("Error starting index:", error)
+      setIsIndexing(false)
+      setIndexProgress({
+        phase: "error",
+        error: "Failed to start indexing",
+      })
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -94,11 +201,6 @@ export default function DocumentsPage() {
           {workspace?.description && (
             <p className="text-gray-600 dark:text-gray-400">{workspace.description}</p>
           )}
-        </div>
-
-        {/* Socket.io Connection Test */}
-        <div className="mb-6">
-          <SocketTest workspaceId={params.id as string} />
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
@@ -128,9 +230,69 @@ export default function DocumentsPage() {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-semibold mb-4">
-            Documents ({documents.length})
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">
+              Documents ({documents.length})
+            </h2>
+
+            {role === "owner" && documents.length > 0 && (
+              <button
+                onClick={handleStartIndex}
+                disabled={isIndexing}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  isIndexing
+                    ? "bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {isIndexing ? "Indexing..." : "📑 Index Workspace"}
+              </button>
+            )}
+          </div>
+
+          {/* Index Progress */}
+          {indexProgress && (
+            <div className={`mb-4 p-4 rounded-lg border ${
+              indexProgress.phase === "error"
+                ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                : indexProgress.phase === "complete"
+                ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">
+                  {indexProgress.phase === "fetching" && "📥 Fetching documents..."}
+                  {indexProgress.phase === "rendering" && "🎨 Rendering PDFs..."}
+                  {indexProgress.phase === "storing" && "💾 Storing pages..."}
+                  {indexProgress.phase === "complete" && "✅ Indexing complete!"}
+                  {indexProgress.phase === "error" && "❌ Indexing failed"}
+                </span>
+                {indexProgress.totalDocuments && (
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {indexProgress.processedDocuments}/{indexProgress.totalDocuments} docs
+                  </span>
+                )}
+              </div>
+
+              {indexProgress.phase === "error" && indexProgress.error && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {indexProgress.error}
+                </p>
+              )}
+
+              {indexProgress.currentDocument && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Processing: {indexProgress.currentDocument.filename}
+                </p>
+              )}
+
+              {indexProgress.processedPages > 0 && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  {indexProgress.processedPages} pages created
+                </p>
+              )}
+            </div>
+          )}
 
           {documents.length === 0 ? (
             <div className="text-center py-8 text-gray-600 dark:text-gray-400">

@@ -6,7 +6,7 @@ import { createServer } from "http"
 import { Server } from "socket.io"
 import cors from "cors"
 import healthRouter from "./routes/health.js"
-import jobsRouter from "./routes/jobs.js"
+import jobsRouter, { setSocketIo } from "./routes/jobs.js"
 import { socketAuthMiddleware, verifyWorkspaceAccess } from "./lib/auth.js"
 import logger from "./lib/logger.js"
 
@@ -60,6 +60,9 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 })
+
+// Pass Socket.io instance to routes
+setSocketIo(io)
 
 // Socket.io authentication middleware
 io.use(socketAuthMiddleware)

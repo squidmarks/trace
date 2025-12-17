@@ -1,6 +1,15 @@
 import { Router } from "express"
+import type { Server } from "socket.io"
 import type { StartIndexJobRequest, StartIndexJobResponse } from "@trace/shared"
+import { processIndexJob } from "../lib/indexing-processor.js"
 import logger from "../lib/logger.js"
+
+// Store Socket.io instance (will be set by server.ts)
+let io: Server
+
+export function setSocketIo(socketIo: Server) {
+  io = socketIo
+}
 
 const router = Router()
 
@@ -37,9 +46,18 @@ router.post("/jobs/start", verifyServiceToken, async (req, res) => {
       logger.debug("   Parameters:", body.params)
     }
 
-    // TODO: Phase 2 - Queue the indexing job
-    logger.warn(`⚠️  [STUB] Would start indexing job for workspace: ${body.workspaceId}`)
-    logger.info("   (Actual indexing implementation coming in Phase 2)")
+    // Start indexing job in background (don't await)
+    processIndexJob(
+      {
+        workspaceId: body.workspaceId,
+        documentIds: body.documentIds,
+        renderDpi: body.params?.renderDpi,
+        renderQuality: body.params?.renderQuality,
+      },
+      io
+    ).catch((error) => {
+      logger.error(`❌ Indexing job failed for workspace ${body.workspaceId}:`, error)
+    })
 
     const response: StartIndexJobResponse = {
       status: "queued",
