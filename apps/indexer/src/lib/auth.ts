@@ -2,10 +2,6 @@ import { getToken } from "next-auth/jwt"
 import type { Socket } from "socket.io"
 import { getWorkspaceRole } from "./permissions.js"
 
-if (!process.env.NEXTAUTH_SECRET) {
-  throw new Error('Invalid/Missing environment variable: "NEXTAUTH_SECRET"')
-}
-
 /**
  * Socket.io authentication middleware
  * Validates NextAuth JWT from cookie and extracts user ID

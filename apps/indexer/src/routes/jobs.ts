@@ -3,10 +3,6 @@ import type { StartIndexJobRequest, StartIndexJobResponse } from "@trace/shared"
 
 const router = Router()
 
-if (!process.env.INDEXER_SERVICE_TOKEN) {
-  throw new Error('Invalid/Missing environment variable: "INDEXER_SERVICE_TOKEN"')
-}
-
 /**
  * Middleware to verify service token from Web app
  */

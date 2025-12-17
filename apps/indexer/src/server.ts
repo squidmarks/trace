@@ -1,14 +1,13 @@
+// Load environment variables FIRST (before any other imports)
+import "./env.js"
+
 import express from "express"
 import { createServer } from "http"
 import { Server } from "socket.io"
 import cors from "cors"
-import dotenv from "dotenv"
 import healthRouter from "./routes/health.js"
 import jobsRouter from "./routes/jobs.js"
 import { socketAuthMiddleware, verifyWorkspaceAccess } from "./lib/auth.js"
-
-// Load environment variables
-dotenv.config()
 
 const PORT = process.env.PORT || 3001
 const WEB_APP_URL = process.env.WEB_APP_URL || "http://localhost:3000"
