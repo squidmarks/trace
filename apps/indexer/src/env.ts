@@ -12,11 +12,16 @@ const required = [
   "WEB_APP_URL",
 ]
 
+const missing: string[] = []
 for (const key of required) {
   if (!process.env[key]) {
-    throw new Error(`Invalid/Missing environment variable: "${key}"`)
+    missing.push(key)
   }
 }
 
-console.log("[Indexer] Environment variables loaded successfully")
+if (missing.length > 0) {
+  throw new Error(`Missing required environment variables: ${missing.join(", ")}`)
+}
+
+console.log("✅ Environment variables loaded and validated")
 

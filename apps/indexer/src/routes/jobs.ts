@@ -1,5 +1,6 @@
 import { Router } from "express"
 import type { StartIndexJobRequest, StartIndexJobResponse } from "@trace/shared"
+import logger from "../lib/logger.js"
 
 const router = Router()
 
@@ -27,11 +28,18 @@ router.post("/jobs/start", verifyServiceToken, async (req, res) => {
     const body: StartIndexJobRequest = req.body
 
     if (!body.workspaceId) {
+      logger.warn("❌ Job start failed: missing workspaceId")
       return res.status(400).json({ error: "workspaceId is required" })
     }
 
+    logger.info(`📋 Job start requested: workspace=${body.workspaceId}`)
+    if (body.params) {
+      logger.debug("   Parameters:", body.params)
+    }
+
     // TODO: Phase 2 - Queue the indexing job
-    console.log(`[Stub] Would start indexing job for workspace: ${body.workspaceId}`)
+    logger.warn(`⚠️  [STUB] Would start indexing job for workspace: ${body.workspaceId}`)
+    logger.info("   (Actual indexing implementation coming in Phase 2)")
 
     const response: StartIndexJobResponse = {
       status: "queued",
@@ -39,7 +47,7 @@ router.post("/jobs/start", verifyServiceToken, async (req, res) => {
 
     res.status(202).json(response)
   } catch (error) {
-    console.error("Error starting job:", error)
+    logger.error("❌ Error starting job:", error)
     res.status(500).json({ error: "Failed to start job" })
   }
 })
