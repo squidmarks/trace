@@ -1,0 +1,38 @@
+{
+  "name": "trace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered system for exploring and understanding large sets of visual PDF documents",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:squidmarks/trace.git"
+  },
+  "workspaces": [
+    "apps/web",
+    "apps/indexer",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:indexer\"",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:indexer": "npm run dev --workspace=apps/indexer",
+    "build": "npm run build --workspaces",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:indexer": "npm run build --workspace=apps/indexer",
+    "lint": "npm run lint --workspaces",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "concurrently": "^8.2.2",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
+
