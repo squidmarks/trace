@@ -275,7 +275,7 @@ To test Phase 1, you need both services running:
 
 **Status**: Complete  
 **Duration**: ~2.5 hours  
-**Commit**: TBD
+**Commit**: `26c76ee`
 
 ### Completed Deliverables
 
