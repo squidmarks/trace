@@ -16,7 +16,7 @@ const WEB_APP_URL = process.env.WEB_APP_URL || "http://localhost:3000"
 const app = express()
 
 // Middleware
-app.use(express.json({ limit: "50mb" })) // Support large PDF uploads
+app.use(express.json({ limit: "100mb" })) // Support large PDF uploads
 app.use(
   cors({
     origin: WEB_APP_URL,

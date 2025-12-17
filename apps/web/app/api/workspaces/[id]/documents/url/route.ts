@@ -68,11 +68,11 @@ export async function POST(
     const arrayBuffer = await response.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Check size (50MB limit)
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    // Check size (100MB limit)
+    const maxSize = 100 * 1024 * 1024 // 100MB
     if (buffer.length > maxSize) {
       return NextResponse.json(
-        { error: "File size exceeds 50MB limit" },
+        { error: "File size exceeds 100MB limit" },
         { status: 400 }
       )
     }

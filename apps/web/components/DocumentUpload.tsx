@@ -19,8 +19,8 @@ export default function DocumentUpload({ workspaceId, onUploadComplete }: Docume
       return
     }
 
-    if (file.size > 50 * 1024 * 1024) {
-      setError("File size exceeds 50MB limit")
+    if (file.size > 100 * 1024 * 1024) {
+      setError("File size exceeds 100MB limit")
       return
     }
 
@@ -142,7 +142,7 @@ export default function DocumentUpload({ workspaceId, onUploadComplete }: Docume
             >
               Select PDF File
             </button>
-            <p className="mt-2 text-xs text-gray-500">Maximum file size: 50MB</p>
+            <p className="mt-2 text-xs text-gray-500">Maximum file size: 100MB</p>
           </>
         )}
       </div>

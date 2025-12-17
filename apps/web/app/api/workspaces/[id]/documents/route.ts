@@ -84,12 +84,12 @@ export async function POST(
       return NextResponse.json({ error: "Invalid base64 data" }, { status: 400 })
     }
 
-    // Check size (50MB limit)
+    // Check size (100MB limit)
     const sizeInBytes = (body.file.length * 3) / 4
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    const maxSize = 100 * 1024 * 1024 // 100MB
     if (sizeInBytes > maxSize) {
       return NextResponse.json(
-        { error: "File size exceeds 50MB limit" },
+        { error: "File size exceeds 100MB limit" },
         { status: 400 }
       )
     }
