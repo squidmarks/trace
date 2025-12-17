@@ -188,16 +188,18 @@ To test Phase 0, you need to:
 
 ### What Works
 
-- User can upload PDF documents (up to 50MB)
+- User can upload PDF documents (up to 10MB due to MongoDB 16MB limit)
 - Drag & drop file upload
-- Fetch PDFs from URLs
-- Documents stored as base64 in MongoDB
-- Duplicate detection via SHA-256 hash
+- Fetch PDFs from URLs (no size limit - only URL stored)
+- **URL documents**: Store URL only, Indexer fetches on-demand
+- **Upload documents**: Stored as base64 in MongoDB with 10MB limit
+- Duplicate detection via SHA-256 hash (uploads) or URL (URL documents)
 - Document listing with metadata
 - Document deletion (owner only)
 - Socket.io connection from browser to Indexer
 - Socket.io authentication using NextAuth JWT
-- Workspace room join/leave
+- Workspace room join/leave with auto-rejoin on reconnect
+- Auto-reconnection with visual feedback (green/red/yellow dots)
 - Real-time event infrastructure ready for Phase 2
 - SocketTest component shows connection status
 
@@ -213,19 +215,36 @@ To test Phase 0, you need to:
 - `apps/web/components/SocketTest.tsx` - Connection debugging
 - `apps/web/lib/socket.ts` - Socket.io client setup
 
-**Indexer (6 files)**:
+**Indexer (7 files)**:
 - `apps/indexer/src/server.ts` - Express + Socket.io server
+- `apps/indexer/src/env.ts` - Environment variable validation
 - `apps/indexer/src/lib/db.ts` - MongoDB helpers
 - `apps/indexer/src/lib/auth.ts` - Socket.io auth middleware
 - `apps/indexer/src/lib/permissions.ts` - Permission helpers
+- `apps/indexer/src/lib/logger.ts` - Winston logger
 - `apps/indexer/src/routes/health.ts` - Health check
 - `apps/indexer/src/routes/jobs.ts` - Job endpoints
 
-**Total**: 14 files, ~1,365 lines of code
+**Agent Guidelines**:
+- `AGENTS.md` - Git workflow rules (no auto-commits)
+
+**Total**: 16 files, ~1,600 lines of code
+
+### Key Fixes Applied
+
+- ✅ Fixed NextAuth to use JWT strategy (was using database sessions)
+- ✅ Fixed Socket.io cookie parsing for JWT validation
+- ✅ Fixed `.env` file loading in Indexer (path resolution)
+- ✅ Refactored URL documents to store URL only (not full PDF)
+- ✅ Added comprehensive Winston logging throughout Indexer
+- ✅ Added auto-reconnection with workspace room rejoin
+- ✅ Reduced upload limit from 50MB to 10MB (MongoDB constraint)
+- ✅ Added visual reconnection feedback (yellow pulsing dot)
 
 ### Known Issues
 
-- None currently
+- **Upload limit**: 10MB file size limit due to MongoDB 16MB document size constraint. Will be resolved in Phase 2+ by moving to object storage (S3/CloudFlare R2).
+- **No automatic indexing**: Documents are stored but not yet processed. Phase 2 will add PDF rendering and automatic indexing triggers.
 
 ### Testing Phase 1
 

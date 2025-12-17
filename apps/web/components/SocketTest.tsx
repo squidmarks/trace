@@ -10,6 +10,7 @@ interface SocketTestProps {
 export default function SocketTest({ workspaceId }: SocketTestProps) {
   const [isConnected, setIsConnected] = useState(false)
   const [isJoined, setIsJoined] = useState(false)
+  const [isReconnecting, setIsReconnecting] = useState(false)
   const [events, setEvents] = useState<string[]>([])
 
   useEffect(() => {
@@ -17,13 +18,24 @@ export default function SocketTest({ workspaceId }: SocketTestProps) {
 
     const handleConnect = () => {
       setIsConnected(true)
+      setIsReconnecting(false)
       addEvent("✅ Connected to Indexer")
     }
 
-    const handleDisconnect = () => {
+    const handleDisconnect = (reason: string) => {
       setIsConnected(false)
       setIsJoined(false)
-      addEvent("❌ Disconnected from Indexer")
+      addEvent(`❌ Disconnected: ${reason}`)
+    }
+
+    const handleReconnectAttempt = (attemptNumber: number) => {
+      setIsReconnecting(true)
+      addEvent(`🔄 Reconnecting... (attempt ${attemptNumber})`)
+    }
+
+    const handleReconnect = (attemptNumber: number) => {
+      setIsReconnecting(false)
+      addEvent(`✅ Reconnected after ${attemptNumber} attempts`)
     }
 
     const handleWorkspaceJoined = ({ workspaceId }: any) => {
@@ -45,6 +57,8 @@ export default function SocketTest({ workspaceId }: SocketTestProps) {
 
     socket.on("connect", handleConnect)
     socket.on("disconnect", handleDisconnect)
+    socket.on("reconnect_attempt", handleReconnectAttempt)
+    socket.on("reconnect", handleReconnect)
     socket.on("workspace:joined", handleWorkspaceJoined)
     socket.on("index:progress", handleIndexProgress)
     socket.on("index:complete", handleIndexComplete)
@@ -63,6 +77,8 @@ export default function SocketTest({ workspaceId }: SocketTestProps) {
     return () => {
       socket.off("connect", handleConnect)
       socket.off("disconnect", handleDisconnect)
+      socket.off("reconnect_attempt", handleReconnectAttempt)
+      socket.off("reconnect", handleReconnect)
       socket.off("workspace:joined", handleWorkspaceJoined)
       socket.off("index:progress", handleIndexProgress)
       socket.off("index:complete", handleIndexComplete)
@@ -90,9 +106,13 @@ export default function SocketTest({ workspaceId }: SocketTestProps) {
 
       <div className="space-y-2 mb-4">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}></div>
+          <div className={`w-2 h-2 rounded-full ${
+            isReconnecting ? "bg-yellow-500 animate-pulse" : 
+            isConnected ? "bg-green-500" : "bg-red-500"
+          }`}></div>
           <span className="text-sm">
-            {isConnected ? "Connected to Indexer" : "Disconnected"}
+            {isReconnecting ? "Reconnecting..." : 
+             isConnected ? "Connected to Indexer" : "Disconnected"}
           </span>
         </div>
 
@@ -102,6 +122,12 @@ export default function SocketTest({ workspaceId }: SocketTestProps) {
             {isJoined ? "Joined workspace room" : "Not in workspace room"}
           </span>
         </div>
+
+        {isReconnecting && (
+          <p className="text-xs text-yellow-600 dark:text-yellow-400">
+            Auto-reconnecting to Indexer...
+          </p>
+        )}
       </div>
 
       {isConnected && !isJoined && (

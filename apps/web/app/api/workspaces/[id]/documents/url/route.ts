@@ -44,46 +44,28 @@ export async function POST(
       )
     }
 
-    // Fetch the PDF
-    console.log(`Fetching PDF from: ${body.url}`)
-    const response = await fetch(body.url)
+    // Validate URL is accessible (HEAD request)
+    console.log(`Validating PDF URL: ${body.url}`)
+    const headResponse = await fetch(body.url, { method: "HEAD" })
 
-    if (!response.ok) {
+    if (!headResponse.ok) {
       return NextResponse.json(
-        { error: `Failed to fetch URL: ${response.statusText}` },
+        { error: `Failed to access URL: ${headResponse.statusText}` },
         { status: 400 }
       )
     }
 
     // Check content type
-    const contentType = response.headers.get("content-type")
-    if (!contentType?.includes("application/pdf")) {
+    const contentType = headResponse.headers.get("content-type")
+    if (contentType && !contentType.includes("application/pdf")) {
       return NextResponse.json(
         { error: "URL does not point to a PDF file" },
         { status: 400 }
       )
     }
 
-    // Get file data
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    // Check size (10MB limit - MongoDB has 16MB document limit, base64 adds ~33% overhead)
-    const maxSize = 10 * 1024 * 1024 // 10MB PDF ≈ 13.3MB base64 + metadata < 16MB MongoDB limit
-    if (buffer.length > maxSize) {
-      return NextResponse.json(
-        { 
-          error: "File size exceeds 10MB limit (MongoDB constraint). For larger files, we'll add object storage in a future update." 
-        },
-        { status: 400 }
-      )
-    }
-
-    // Convert to base64
-    const base64 = buffer.toString("base64")
-
-    // Calculate hash
-    const hash = crypto.createHash("sha256").update(buffer).digest("hex")
+    // No size limit for URL documents - Indexer will fetch on-demand
+    console.log(`URL validated successfully`)
 
     // Determine filename
     let filename = body.filename?.trim()
@@ -99,15 +81,15 @@ export async function POST(
 
     const documents = await getDocumentsCollection()
 
-    // Check for duplicate (same hash in workspace)
+    // Check for duplicate URL in workspace
     const existing = await documents.findOne({
       workspaceId: new ObjectId(params.id),
-      pdfHash: hash,
+      sourceUrl: body.url,
     })
 
     if (existing) {
       return NextResponse.json(
-        { error: "Document already exists in workspace" },
+        { error: "Document with this URL already exists in workspace" },
         { status: 409 }
       )
     }
@@ -118,8 +100,7 @@ export async function POST(
       filename,
       sourceType: "url" as const,
       sourceUrl: body.url,
-      pdfData: base64,
-      pdfHash: hash,
+      // No pdfData - Indexer will fetch on-demand!
       status: "ready" as const,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -127,13 +108,10 @@ export async function POST(
 
     const result = await documents.insertOne(document)
 
-    // Return without pdfData
-    const { pdfData, ...documentWithoutData } = document
-
     return NextResponse.json(
       {
         document: {
-          ...documentWithoutData,
+          ...document,
           _id: result.insertedId,
         },
       },
@@ -144,16 +122,6 @@ export async function POST(
 
     if (error.message === "Owner access required") {
       return NextResponse.json({ error: error.message }, { status: 403 })
-    }
-
-    // Check for MongoDB size limit error
-    if (error.code === "ERR_OUT_OF_RANGE" || error.message?.includes("offset")) {
-      return NextResponse.json(
-        { 
-          error: "Document too large for MongoDB (16MB limit). Please use a smaller file or wait for object storage support." 
-        },
-        { status: 400 }
-      )
     }
 
     return NextResponse.json(

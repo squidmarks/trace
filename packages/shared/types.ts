@@ -78,8 +78,8 @@ export interface Document {
   filename: string
   sourceType: DocumentSourceType
   sourceUrl?: string
-  pdfData: string  // base64-encoded PDF
-  pdfHash: string  // SHA-256 hash
+  pdfData?: string  // base64-encoded PDF (only for uploads, optional)
+  pdfHash?: string  // SHA-256 hash (optional, used for deduplication)
   pageCount?: number
   status: DocumentStatus
   error?: string

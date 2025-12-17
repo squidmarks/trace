@@ -8,9 +8,43 @@ import { getWorkspaceRole } from "./permissions.js"
  */
 export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) => void) {
   try {
+    // Extract cookies from request
+    const cookieHeader = socket.request.headers.cookie
+    if (!cookieHeader) {
+      return next(new Error("Unauthorized"))
+    }
+
+    // Parse cookies manually
+    const cookies: Record<string, string> = {}
+    cookieHeader.split(';').forEach(cookie => {
+      const [name, ...valueParts] = cookie.trim().split('=')
+      cookies[name] = decodeURIComponent(valueParts.join('='))
+    })
+
+    const isProduction = process.env.NODE_ENV === "production"
+    const cookieName = isProduction 
+      ? "__Secure-next-auth.session-token" 
+      : "next-auth.session-token"
+    
+    const sessionToken = cookies[cookieName]
+    
+    if (!sessionToken) {
+      return next(new Error("Unauthorized"))
+    }
+
+    // Create a proper request object for getToken
+    const req = {
+      headers: {
+        cookie: cookieHeader,
+      },
+      cookies: cookies,
+    } as any
+
     const token = await getToken({
-      req: socket.request as any,
+      req,
       secret: process.env.NEXTAUTH_SECRET!,
+      secureCookie: isProduction,
+      cookieName,
     })
 
     if (!token?.sub) {
@@ -21,7 +55,7 @@ export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) =
     socket.data.userId = token.sub
     next()
   } catch (error) {
-    console.error("Socket auth error:", error)
+    console.error("[Socket.io Auth] Error:", error)
     next(new Error("Authentication failed"))
   }
 }

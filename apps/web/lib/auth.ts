@@ -20,9 +20,17 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    session: async ({ session, user }) => {
-      if (session.user) {
-        session.user.id = user.id
+    // JWT callback - add user ID to token
+    jwt: async ({ token, user }) => {
+      if (user) {
+        token.sub = user.id
+      }
+      return token
+    },
+    // Session callback - add user ID to session
+    session: async ({ session, token }) => {
+      if (session.user && token.sub) {
+        session.user.id = token.sub
       }
       return session
     },
@@ -31,7 +39,7 @@ export const authOptions: NextAuthOptions = {
     signIn: "/signin",
   },
   session: {
-    strategy: "database",
+    strategy: "jwt", // Use JWT for Socket.io compatibility
   },
 }
 
