@@ -11,14 +11,14 @@ Track the implementation status of Trace across all phases.
 | Phase | Status | Progress | Started | Completed |
 |-------|--------|----------|---------|-----------|
 | Phase 0: Foundation | ✅ Complete | 100% | Dec 17 | Dec 17 |
-| Phase 1: Documents + Socket.io | ⏳ Not Started | 0% | - | - |
+| Phase 1: Documents + Socket.io | ✅ Complete | 100% | Dec 17 | Dec 17 |
 | Phase 2: PDF Rendering | ⏳ Not Started | 0% | - | - |
 | Phase 3: AI Analysis | ⏳ Not Started | 0% | - | - |
 | Phase 4: Embeddings + Search | ⏳ Not Started | 0% | - | - |
 | Phase 5: Chat System | ⏳ Not Started | 0% | - | - |
 | Phase 6: Ontology + Polish | ⏳ Not Started | 0% | - | - |
 
-**Overall Progress**: 14% (1/7 phases complete)
+**Overall Progress**: 29% (2/7 phases complete)
 
 ---
 
@@ -163,47 +163,92 @@ To test Phase 0, you need to:
 
 ---
 
-## Phase 1: Documents + Socket.io ⏳
+## Phase 1: Documents + Socket.io ✅
 
-**Status**: Not Started  
-**Planned Duration**: 1 week
+**Status**: Complete  
+**Duration**: ~2 hours  
+**Commit**: `7ee12df`
 
-### Planned Deliverables
+### Completed Deliverables
 
-- [ ] Document upload API route (`POST /api/workspaces/:id/documents`)
-- [ ] Document by URL API route (`POST /api/workspaces/:id/documents/url`)
-- [ ] Document list API route (`GET /api/workspaces/:id/documents`)
-- [ ] Document delete API route (`DELETE /api/workspaces/:id/documents/:documentId`)
-- [ ] Documents UI in workspace
-- [ ] File upload component
-- [ ] Add from URL modal
-- [ ] Indexer service skeleton (`apps/indexer/src/server.ts`)
-- [ ] Socket.io server in Indexer
-- [ ] Socket.io auth middleware (NextAuth JWT validation)
-- [ ] Workspace room management
-- [ ] Socket.io client connection in browser
-- [ ] Health check endpoint (`GET /health`)
-- [ ] Start job endpoint (`POST /jobs/start`) - stub
+- ✅ Document upload API route (`POST /api/workspaces/:id/documents`)
+- ✅ Document by URL API route (`POST /api/workspaces/:id/documents/url`)
+- ✅ Document list API route (`GET /api/workspaces/:id/documents`)
+- ✅ Document delete API route (`DELETE /api/workspaces/:id/documents/:documentId`)
+- ✅ Documents UI in workspace
+- ✅ File upload component with drag & drop
+- ✅ Add from URL modal
+- ✅ Indexer service skeleton (`apps/indexer/src/server.ts`)
+- ✅ Socket.io server in Indexer
+- ✅ Socket.io auth middleware (NextAuth JWT validation)
+- ✅ Workspace room management
+- ✅ Socket.io client connection in browser
+- ✅ Health check endpoint (`GET /health`)
+- ✅ Start job endpoint (`POST /jobs/start`) - stub
 
-### Files to Create
+### What Works
 
-**Web App**:
-- `apps/web/app/(dashboard)/workspaces/[id]/layout.tsx` - Workspace detail layout
+- User can upload PDF documents (up to 50MB)
+- Drag & drop file upload
+- Fetch PDFs from URLs
+- Documents stored as base64 in MongoDB
+- Duplicate detection via SHA-256 hash
+- Document listing with metadata
+- Document deletion (owner only)
+- Socket.io connection from browser to Indexer
+- Socket.io authentication using NextAuth JWT
+- Workspace room join/leave
+- Real-time event infrastructure ready for Phase 2
+- SocketTest component shows connection status
+
+### Files Created
+
+**Web App (8 files)**:
 - `apps/web/app/(dashboard)/workspaces/[id]/documents/page.tsx` - Documents tab
 - `apps/web/app/api/workspaces/[id]/documents/route.ts` - List/upload
 - `apps/web/app/api/workspaces/[id]/documents/url/route.ts` - Add by URL
 - `apps/web/app/api/workspaces/[id]/documents/[documentId]/route.ts` - Get/delete
 - `apps/web/components/DocumentUpload.tsx` - Upload component
 - `apps/web/components/AddFromUrlModal.tsx` - URL modal
+- `apps/web/components/SocketTest.tsx` - Connection debugging
 - `apps/web/lib/socket.ts` - Socket.io client setup
 
-**Indexer**:
+**Indexer (6 files)**:
 - `apps/indexer/src/server.ts` - Express + Socket.io server
 - `apps/indexer/src/lib/db.ts` - MongoDB helpers
 - `apps/indexer/src/lib/auth.ts` - Socket.io auth middleware
 - `apps/indexer/src/lib/permissions.ts` - Permission helpers
 - `apps/indexer/src/routes/health.ts` - Health check
 - `apps/indexer/src/routes/jobs.ts` - Job endpoints
+
+**Total**: 14 files, ~1,365 lines of code
+
+### Known Issues
+
+- None currently
+
+### Testing Phase 1
+
+To test Phase 1, you need both services running:
+
+1. **Terminal 1 - Web app**:
+   ```bash
+   npm run dev:web
+   ```
+
+2. **Terminal 2 - Indexer**:
+   ```bash
+   npm run dev:indexer
+   ```
+
+3. **Test the features**:
+   - Go to workspace → Documents tab
+   - See Socket.io connection status (green dots = connected)
+   - Upload a PDF file (drag & drop or click)
+   - Try "Add from URL" with a PDF URL
+   - Verify document appears in list
+   - Delete a document (owner only)
+   - Check Indexer terminal for Socket.io logs
 
 ---
 
@@ -359,6 +404,9 @@ npm run format:check
 
 | Commit | Date | Phase | Description |
 |--------|------|-------|-------------|
+| `7ee12df` | Dec 17 | Phase 1 | Documents + Socket.io complete |
+| `1302aea` | Dec 17 | Phase 0 | Fix workspace list link |
+| `11c1112` | Dec 17 | Phase 0 | Add workspace detail placeholder |
 | `0f4660e` | Dec 17 | Phase 0 | Foundation complete - auth, workspaces, UI |
 | `eb19660` | Dec 17 | Spec | Initial specification and documentation |
 
@@ -368,18 +416,21 @@ npm run format:check
 
 When continuing development:
 
-1. **Test Phase 0** (if not already done):
-   - Set up `.env.local` with credentials
-   - Run `npm run dev:web`
-   - Test auth flow
-   - Test workspace CRUD
+1. **Test Phase 1** (if not already done):
+   - Start both Web and Indexer services
+   - Upload a PDF document
+   - Try add from URL
+   - Verify Socket.io connection
+   - Check Indexer logs
 
-2. **Begin Phase 1**:
-   - Create Indexer server skeleton
-   - Implement Socket.io server with auth
-   - Add document upload API
-   - Create documents UI
-   - Test Socket.io connection
+2. **Begin Phase 2**:
+   - Implement PDF rendering with pdfjs-dist
+   - Create job consumer/worker
+   - Implement fetch and render phases
+   - Add progress tracking to MongoDB
+   - Emit Socket.io progress events
+   - Build index trigger UI
+   - Create page viewer component
 
 ---
 
