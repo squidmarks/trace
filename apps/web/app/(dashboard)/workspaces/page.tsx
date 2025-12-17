@@ -94,7 +94,7 @@ export default function WorkspacesPage() {
             {workspaces.map((workspace) => (
               <Link
                 key={workspace._id.toString()}
-                href={`/workspaces/${workspace._id}/documents`}
+                href={`/workspaces/${workspace._id}`}
                 className="block p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition group"
               >
                 <div className="flex items-start justify-between mb-3">
