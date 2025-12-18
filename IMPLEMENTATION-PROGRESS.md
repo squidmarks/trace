@@ -2,7 +2,7 @@
 
 Track the implementation status of Trace across all phases.
 
-**Last Updated**: December 17, 2025
+**Last Updated**: December 18, 2025
 
 ---
 
@@ -678,6 +678,71 @@ Tested with 171-page PDF:
 - Using `gpt-4o-mini` instead of `gpt-4o`: **~90% savings**
 - 171 pages with gpt-4o-mini: ~$0.50
 - 171 pages with gpt-4o: ~$5.00
+
+### Additional Improvements (Session 2)
+
+**Date**: December 18, 2025  
+**Duration**: ~3 hours  
+**Commit**: `1c5fe5b`
+
+#### Types Consolidation
+- ✅ Deleted duplicate `/docs/shared/` types
+- ✅ Consolidated all types into `/packages/shared/`
+- ✅ Added `packages/shared/README.md`
+- ✅ Fixed TypeScript compilation (rootDir, duplicate exports)
+- ✅ Single source of truth for all shared types
+
+#### Smart Re-indexing
+- ✅ Distinguish fresh start vs auto-resume
+- ✅ Fresh start: Delete all pages, re-render, re-analyze
+- ✅ Auto-resume: Keep existing pages, skip rendering, only analyze missing
+- ✅ Prevents wasteful re-processing on indexer restart
+- ✅ Allows settings changes to apply on user-initiated re-index
+
+#### Enhanced Progress Feedback
+- ✅ "Opening document..." message (fills 30s+ gap before rendering)
+- ✅ "Starting analysis..." transition (shows 100% rendered → 0% analyzed)
+- ✅ Pre-analysis updates (every page before analysis starts)
+- ✅ Post-analysis updates (every page after analysis completes)
+- ✅ No more 10-30s gaps in progress updates
+
+#### Abort & Cleanup
+- ✅ Abort API endpoint (`POST /api/workspaces/:id/index/abort`)
+- ✅ Abort button in UI with inline confirmation
+- ✅ Immediate UI clearing on abort (no error panel)
+- ✅ Workspace deletion now aborts active indexing jobs
+- ✅ Workspace deletion removes orphaned pages
+
+#### Configurable Analysis Detail
+- ✅ Added `analysisDetail: "low" | "auto" | "high"` to `WorkspaceConfig`
+- ✅ Controls OpenAI Vision API detail level for cost/speed tuning
+- ✅ Default: `"high"` (best quality)
+- ✅ Debug logging to verify setting is used
+- ✅ Passed through entire pipeline (Web API → Indexer → AI Analyzer)
+
+#### UI Polish
+- ✅ Replaced all emoticons with Lucide icons
+- ✅ `ConfirmButton` component for inline confirmations (no browser alerts)
+- ✅ Document deletion uses `ConfirmButton`
+- ✅ Abort button uses `ConfirmButton`
+- ✅ Workspace deletion button added to detail page
+
+#### Bug Fixes
+- ✅ Fixed multiple Socket.io connection issue
+- ✅ Fixed progress bar showing 200% (incorrect calculation)
+- ✅ Fixed orphaned pages on document deletion
+- ✅ Fixed orphaned pages on workspace deletion
+- ✅ Fixed duplicate workspace:join requests
+
+#### Files Modified (Session 2)
+- 33 files changed
+- 2,176 insertions, 1,052 deletions
+- Key files:
+  - `packages/shared/types.ts` - Added `WorkspaceConfig` with `analysisDetail`
+  - `packages/shared/contracts.ts` - Added `analysisDetail` to schemas
+  - `apps/indexer/src/lib/indexing-processor.ts` - Smart resume logic
+  - `apps/web/app/(dashboard)/workspaces/[id]/documents/page.tsx` - Progress feedback
+  - `apps/web/components/ConfirmButton.tsx` - New component
 
 ---
 
