@@ -43,7 +43,8 @@ export const indexParamsSchema = z.object({
   analysisModel: z.string().optional(),
   embeddingModel: z.string().optional(),
   renderDpi: z.number().int().min(72).max(300).optional(),
-  renderQuality: z.number().int().min(1).max(100).optional()
+  renderQuality: z.number().int().min(1).max(100).optional(),
+  analysisDetail: z.enum(["low", "auto", "high"]).optional()
 })
 
 export const triggerIndexSchema = z.object({
@@ -166,6 +167,7 @@ export const ontologySchema = z.object({
 
 export const startIndexJobSchema = z.object({
   workspaceId: z.string(),
+  documentIds: z.array(z.string()).optional(),
   params: indexParamsSchema.optional()
 })
 
@@ -201,10 +203,12 @@ export type CreateWorkspaceRequest = z.infer<typeof createWorkspaceSchema>
 export type UpdateWorkspaceRequest = z.infer<typeof updateWorkspaceSchema>
 export type UploadDocumentRequest = z.infer<typeof uploadDocumentSchema>
 export type AddDocumentByUrlRequest = z.infer<typeof addDocumentByUrlSchema>
+export type IndexParams = z.infer<typeof indexParamsSchema>
 export type TriggerIndexRequest = z.infer<typeof triggerIndexSchema>
 export type SearchQuery = z.infer<typeof searchQuerySchema>
 export type ChatRequest = z.infer<typeof chatRequestSchema>
 export type AddMemberRequest = z.infer<typeof addMemberSchema>
-export type PageAnalysis = z.infer<typeof pageAnalysisSchema>
-export type Ontology = z.infer<typeof ontologySchema>
+export type PageAnalysisInput = z.infer<typeof pageAnalysisSchema>
+export type OntologyInput = z.infer<typeof ontologySchema>
 export type StartIndexJobRequest = z.infer<typeof startIndexJobSchema>
+export type StartIndexJobResponse = { status: "queued" }

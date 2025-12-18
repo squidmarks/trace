@@ -12,6 +12,7 @@
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.1",
     "@trace/shared": "*",
+    "lucide-react": "^0.309.0",
     "mongodb": "^6.3.0",
     "next": "^14.1.0",
     "next-auth": "^4.24.5",

@@ -51,6 +51,25 @@ export interface IndexProgress {
   updatedAt: Date
 }
 
+export interface WorkspaceConfig {
+  indexing: {
+    renderDpi: 100 | 150 | 200          // Image resolution for PDF rendering
+    renderQuality: 75 | 85 | 95          // JPEG quality (1-100)
+    analysisModel: string                // OpenAI model for page analysis
+    analysisTemperature: number          // AI temperature (0.0-1.0)
+    analysisDetail: "low" | "auto" | "high"  // Vision API detail level
+  }
+  search?: {
+    maxResults: number                   // Max search results to return
+    minConfidence: number                // Min confidence threshold (0.0-1.0)
+  }
+  chat?: {
+    model: string                        // OpenAI model for chat
+    temperature: number                  // AI temperature (0.0-1.0)
+    maxTokens: number                    // Max response tokens
+  }
+}
+
 export interface Workspace {
   _id: ObjectId
   ownerId: ObjectId
@@ -59,6 +78,7 @@ export interface Workspace {
   members: WorkspaceMember[]
   indexStatus: IndexStatus
   indexProgress?: IndexProgress
+  config?: WorkspaceConfig             // Workspace-level configuration
   createdAt: Date
   updatedAt: Date
 }
@@ -227,48 +247,10 @@ export interface ChatSession {
 // ============================================================================
 // API Request/Response Types
 // ============================================================================
+// NOTE: Most API request/response types are defined in contracts.ts as Zod schemas
+// and inferred types. Only non-validated types are defined here.
 
-// Workspace
-export interface CreateWorkspaceRequest {
-  name: string
-  description?: string
-}
-
-export interface UpdateWorkspaceRequest {
-  name?: string
-  description?: string
-}
-
-// Document
-export interface UploadDocumentRequest {
-  filename: string
-  file: string  // base64
-}
-
-export interface AddDocumentByUrlRequest {
-  url: string
-  filename?: string
-}
-
-// Index
-export interface IndexParams {
-  analysisModel?: string
-  embeddingModel?: string
-  renderDpi?: number
-  renderQuality?: number
-}
-
-export interface TriggerIndexRequest {
-  params?: IndexParams
-}
-
-// Search
-export interface SearchRequest {
-  q: string
-  limit?: number
-  offset?: number
-}
-
+// Search (not yet validated with Zod)
 export interface SearchMatch {
   vector: number
   topics: string[]
@@ -287,13 +269,7 @@ export interface SearchResponse {
   query: string
 }
 
-// Chat
-export interface ChatRequest {
-  sessionId?: string
-  message: string
-  model?: string
-}
-
+// Chat (not yet validated with Zod)
 export interface ChatResponse {
   sessionId: string
   message: {
@@ -304,23 +280,48 @@ export interface ChatResponse {
   }
 }
 
-// Members
-export interface AddMemberRequest {
-  email: string
-}
-
 // ============================================================================
 // Indexer Types
 // ============================================================================
 
-export interface StartIndexJobRequest {
-  workspaceId: string
-  params?: IndexParams
+export type IndexJobStatus = "queued" | "in-progress" | "complete" | "failed" | "cancelled"
+
+export interface IndexJobProgress {
+  totalDocuments: number
+  processedDocuments: number
+  totalPages: number
+  processedPages: number
+  analyzedPages: number
 }
 
-export interface StartIndexJobResponse {
-  status: "queued"
+export interface IndexJobCost {
+  inputTokens: number
+  outputTokens: number
+  totalCost: number // USD
 }
+
+export interface IndexJob {
+  _id: ObjectId
+  workspaceId: ObjectId
+  status: IndexJobStatus
+  progress: IndexJobProgress
+  cost: IndexJobCost
+  documentIds?: ObjectId[] // If specified, only index these documents
+  renderDpi: number
+  renderQuality: number
+  modelConfig: {
+    analysis: string // Model name from config/models.json
+    analysisDetail: "low" | "auto" | "high" // Vision API detail level
+    embeddings?: string
+  }
+  startedAt: Date
+  completedAt?: Date
+  error?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+// StartIndexJobRequest/Response are defined in contracts.ts
 
 // ============================================================================
 // Utility Types

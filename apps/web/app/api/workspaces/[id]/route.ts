@@ -135,6 +135,26 @@ export async function DELETE(
 
     await requireOwnerAccess(params.id, session.user.id)
 
+    // Abort any active indexing jobs before deletion
+    const INDEXER_SERVICE_URL = process.env.INDEXER_SERVICE_URL || "http://localhost:3001"
+    const INDEXER_SERVICE_TOKEN = process.env.INDEXER_SERVICE_TOKEN
+    
+    if (INDEXER_SERVICE_TOKEN) {
+      try {
+        await fetch(`${INDEXER_SERVICE_URL}/jobs/${params.id}/abort`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${INDEXER_SERVICE_TOKEN}`,
+          },
+        })
+        console.log(`Aborted indexing job for workspace ${params.id} before deletion`)
+      } catch (error) {
+        // Continue with deletion even if abort fails (job might not exist)
+        console.log(`No active job to abort for workspace ${params.id}`)
+      }
+    }
+
     const workspaces = await getWorkspacesCollection()
     
     const result = await workspaces.deleteOne({

@@ -19,12 +19,7 @@ export function getSocket(): Socket {
 
     socket.on("connect", () => {
       console.log("[Socket.io] ✅ Connected to Indexer")
-      
-      // Auto-rejoin workspace room if we were in one
-      if (currentWorkspaceId) {
-        console.log(`[Socket.io] 🔄 Rejoining workspace: ${currentWorkspaceId}`)
-        socket!.emit("workspace:join", { workspaceId: currentWorkspaceId })
-      }
+      // Note: Workspace rejoining is handled by the component
     })
 
     socket.on("disconnect", (reason) => {

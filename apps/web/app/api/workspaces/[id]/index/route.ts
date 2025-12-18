@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
+import { ObjectId } from "mongodb"
 import { authOptions } from "@/lib/auth"
 import { getWorkspaceRole } from "@/lib/permissions"
+import { getWorkspacesCollection } from "@/lib/db"
 
 const INDEXER_SERVICE_URL =
   process.env.INDEXER_SERVICE_URL || "http://localhost:3001"
@@ -35,6 +37,28 @@ export async function POST(
       )
     }
 
+    // Fetch workspace to get config
+    const workspaces = await getWorkspacesCollection()
+    const workspace = await workspaces.findOne({ _id: new ObjectId(params.id) })
+    
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Workspace not found" },
+        { status: 404 }
+      )
+    }
+
+    // Use workspace config or fallback to defaults
+    const config = workspace.config || {
+      indexing: {
+        renderDpi: 150,
+        renderQuality: 85,
+        analysisModel: "gpt-4o-mini",
+        analysisTemperature: 0.1,
+        analysisDetail: "auto",
+      }
+    }
+
     // Call Indexer service
     const response = await fetch(`${INDEXER_SERVICE_URL}/jobs/start`, {
       method: "POST",
@@ -45,8 +69,10 @@ export async function POST(
       body: JSON.stringify({
         workspaceId: params.id,
         params: {
-          renderDpi: 150,
-          renderQuality: 85,
+          renderDpi: config.indexing.renderDpi,
+          renderQuality: config.indexing.renderQuality,
+          analysisModel: config.indexing.analysisModel,
+          analysisDetail: config.indexing.analysisDetail,
         },
       }),
     })

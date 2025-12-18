@@ -1,44 +1,51 @@
-import { MongoClient, Db } from "mongodb"
+import { MongoClient, Db, Collection } from "mongodb"
+import type { Document, Page, IndexJob, Workspace } from "@trace/shared"
 
-const uri = process.env.MONGODB_URI!
-const options = {}
+if (!process.env.MONGODB_URI) {
+  throw new Error("MONGODB_URI environment variable is not set")
+}
+
+const uri = process.env.MONGODB_URI
+const dbName = "trace"
 
 let client: MongoClient
-let clientPromise: Promise<MongoClient>
+let db: Db
 
-// Create single MongoDB client
-client = new MongoClient(uri, options)
-clientPromise = client.connect()
+export async function connectToDatabase(): Promise<Db> {
+  if (db) {
+    return db
+  }
+
+  client = new MongoClient(uri)
+  await client.connect()
+  db = client.db(dbName)
+
+  return db
+}
 
 export async function getDb(): Promise<Db> {
-  const client = await clientPromise
-  return client.db("trace")
+  if (!db) {
+    await connectToDatabase()
+  }
+  return db
 }
 
-export async function getWorkspacesCollection() {
-  const db = await getDb()
-  return db.collection("workspaces")
+export async function getDocumentsCollection(): Promise<Collection<Document>> {
+  const database = await getDb()
+  return database.collection<Document>("documents")
 }
 
-export async function getDocumentsCollection() {
-  const db = await getDb()
-  return db.collection("documents")
+export async function getPagesCollection(): Promise<Collection<Page>> {
+  const database = await getDb()
+  return database.collection<Page>("pages")
 }
 
-export async function getPagesCollection() {
-  const db = await getDb()
-  return db.collection("pages")
+export async function getIndexJobsCollection(): Promise<Collection<IndexJob>> {
+  const database = await getDb()
+  return database.collection<IndexJob>("indexJobs")
 }
 
-export async function getOntologiesCollection() {
-  const db = await getDb()
-  return db.collection("ontologies")
+export async function getWorkspacesCollection(): Promise<Collection<Workspace>> {
+  const database = await getDb()
+  return database.collection<Workspace>("workspaces")
 }
-
-export async function getChatSessionsCollection() {
-  const db = await getDb()
-  return db.collection("chatSessions")
-}
-
-export default clientPromise
-

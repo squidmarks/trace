@@ -21,7 +21,7 @@ Trace will be built incrementally across **7 phases** (0-6), with each phase del
    - Initialize monorepo structure (web + indexer)
    - Configure TypeScript, ESLint, Prettier
    - Set up package.json dependencies
-   - Copy shared types from `/docs/shared/` into project
+   - Create shared types package at `/packages/shared/`
 
 2. **NextAuth Google OAuth**
    - Install NextAuth

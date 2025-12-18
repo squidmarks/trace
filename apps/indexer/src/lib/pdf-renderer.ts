@@ -25,11 +25,13 @@ export interface RenderedPage {
  * Render a PDF document to JPEG images
  * @param pdfBuffer - PDF file as Buffer
  * @param options - Rendering options
+ * @param onPageRendered - Callback after each page is rendered (page, current, total)
  * @returns Array of rendered pages with base64 images
  */
 export async function renderPdfToImages(
   pdfBuffer: Buffer,
-  options: RenderOptions = {}
+  options: RenderOptions = {},
+  onPageRendered?: (page: RenderedPage, current: number, total: number) => void | Promise<void>
 ): Promise<RenderedPage[]> {
   const dpi = options.dpi || 150
   const quality = options.quality || 85
@@ -103,9 +105,19 @@ export async function renderPdfToImages(
         height: metadata.height || 0,
       })
 
+      const renderedPage: RenderedPage = {
+        pageNumber: pageNum,
+        imageData: base64Image,
+        width: metadata.width || 0,
+        height: metadata.height || 0,
+      }
+
       logger.debug(
-        `   ✅ Page ${pageNum} processed (${Math.round(jpegBuffer.length / 1024)}KB)`
+        `   ✅ Page ${pageNum} rendered (${Math.round(jpegBuffer.length / 1024)}KB)`
       )
+
+      // Call callback with rendered page (allows caller to save immediately)
+      await onPageRendered?.(renderedPage, pageNum, imageFiles.length)
     }
 
     logger.info(

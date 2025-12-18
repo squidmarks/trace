@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { FileText, CheckCircle2, Zap, Search, MessageSquare } from "lucide-react"
 import type { Workspace, Role } from "@trace/shared"
 
 export default function WorkspaceDetailPage() {
@@ -87,13 +88,17 @@ export default function WorkspaceDetailPage() {
               {stats && (stats.documentCount > 0 || stats.pageCount > 0) && (
                 <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                   {stats.documentCount > 0 && (
-                    <span>📄 {stats.documentCount} {stats.documentCount === 1 ? 'document' : 'documents'}</span>
+                    <span className="flex items-center gap-1">
+                      <FileText size={16} />
+                      {stats.documentCount} {stats.documentCount === 1 ? 'document' : 'documents'}
+                    </span>
                   )}
                   {stats.pageCount > 0 && (
                     <>
                       <span>•</span>
-                      <span className="font-medium text-green-600 dark:text-green-400">
-                        ✅ {stats.pageCount} {stats.pageCount === 1 ? 'page' : 'pages'} indexed
+                      <span className="font-medium text-green-600 dark:text-green-400 flex items-center gap-1">
+                        <CheckCircle2 size={16} />
+                        {stats.pageCount} {stats.pageCount === 1 ? 'page' : 'pages'} indexed
                       </span>
                     </>
                   )}
@@ -107,7 +112,10 @@ export default function WorkspaceDetailPage() {
 
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <h2 className="text-lg font-semibold mb-2">✅ Workspace Created Successfully!</h2>
+              <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                <CheckCircle2 size={20} className="text-green-600 dark:text-green-400" />
+                Workspace Created Successfully!
+              </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Your workspace has been created. The full workspace interface with document management, 
                 search, and chat will be available in Phase 1.
@@ -140,11 +148,26 @@ export default function WorkspaceDetailPage() {
             <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
               <h3 className="font-semibold mb-3">Coming in Phase 1:</h3>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <li>📄 Document upload and management</li>
-                <li>⚡ Real-time indexing progress via Socket.io</li>
-                <li>🔍 Search and explore (Phase 4)</li>
-                <li>💬 AI chat assistant (Phase 5)</li>
-                <li>🧠 Workspace ontology (Phase 6)</li>
+                <li className="flex items-center gap-2">
+                  <FileText size={16} />
+                  Document upload and management
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap size={16} />
+                  Real-time indexing progress via Socket.io
+                </li>
+                <li className="flex items-center gap-2">
+                  <Search size={16} />
+                  Search and explore (Phase 4)
+                </li>
+                <li className="flex items-center gap-2">
+                  <MessageSquare size={16} />
+                  AI chat assistant (Phase 5)
+                </li>
+                <li className="flex items-center gap-2">
+                  <MessageSquare size={16} />
+                  Workspace ontology (Phase 6)
+                </li>
               </ul>
             </div>
           </div>

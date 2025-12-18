@@ -1,0 +1,57 @@
+{
+  "analysis": {
+    "gpt-4o": {
+      "name": "GPT-4o",
+      "provider": "openai",
+      "inputCostPer1M": 2.50,
+      "outputCostPer1M": 10.00,
+      "supportsVision": true,
+      "maxTokens": 128000,
+      "contextWindow": 128000
+    },
+    "gpt-4o-mini": {
+      "name": "GPT-4o Mini",
+      "provider": "openai",
+      "inputCostPer1M": 0.15,
+      "outputCostPer1M": 0.60,
+      "supportsVision": true,
+      "maxTokens": 128000,
+      "contextWindow": 128000
+    }
+  },
+  "embeddings": {
+    "text-embedding-3-large": {
+      "name": "Text Embedding 3 Large",
+      "provider": "openai",
+      "costPer1M": 0.13,
+      "dimensions": 3072
+    },
+    "text-embedding-3-small": {
+      "name": "Text Embedding 3 Small",
+      "provider": "openai",
+      "costPer1M": 0.02,
+      "dimensions": 1536
+    }
+  },
+  "chat": {
+    "gpt-4o": {
+      "name": "GPT-4o",
+      "provider": "openai",
+      "inputCostPer1M": 2.50,
+      "outputCostPer1M": 10.00,
+      "supportsVision": false,
+      "maxTokens": 16384,
+      "contextWindow": 128000
+    },
+    "gpt-4o-mini": {
+      "name": "GPT-4o Mini",
+      "provider": "openai",
+      "inputCostPer1M": 0.15,
+      "outputCostPer1M": 0.60,
+      "supportsVision": false,
+      "maxTokens": 16384,
+      "contextWindow": 128000
+    }
+  }
+}
+

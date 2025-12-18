@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { ObjectId } from "mongodb"
 import { authOptions } from "@/lib/auth"
-import { getDocumentsCollection } from "@/lib/db"
+import { getDocumentsCollection, getPagesCollection } from "@/lib/db"
 import { getWorkspaceRole, requireOwnerAccess } from "@/lib/permissions"
 
 // GET /api/workspaces/:id/documents/:documentId - Get document
@@ -62,17 +62,30 @@ export async function DELETE(
     await requireOwnerAccess(params.id, session.user.id)
 
     const documents = await getDocumentsCollection()
+    const pages = await getPagesCollection()
 
+    const documentId = new ObjectId(params.documentId)
+    const workspaceId = new ObjectId(params.id)
+
+    // Delete document
     const result = await documents.deleteOne({
-      _id: new ObjectId(params.documentId),
-      workspaceId: new ObjectId(params.id),
+      _id: documentId,
+      workspaceId: workspaceId,
     })
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 })
     }
 
-    // TODO: Phase 2+ - Also delete associated pages when re-indexing
+    // Delete associated pages
+    const pageDeleteResult = await pages.deleteMany({
+      documentId: documentId,
+      workspaceId: workspaceId,
+    })
+
+    console.log(
+      `Deleted document ${params.documentId} and ${pageDeleteResult.deletedCount} associated pages`
+    )
 
     return new NextResponse(null, { status: 204 })
   } catch (error: any) {

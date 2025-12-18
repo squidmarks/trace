@@ -4,10 +4,13 @@ import "./env.js"
 import express from "express"
 import { createServer } from "http"
 import { Server } from "socket.io"
+import { ObjectId } from "mongodb"
 import cors from "cors"
 import healthRouter from "./routes/health.js"
 import jobsRouter, { setSocketIo } from "./routes/jobs.js"
 import { socketAuthMiddleware, verifyWorkspaceAccess } from "./lib/auth.js"
+import { resumeInProgressJobs } from "./lib/indexing-processor.js"
+import { getIndexJobsCollection } from "./lib/db.js"
 import logger from "./lib/logger.js"
 
 const PORT = process.env.PORT || 3001
@@ -95,6 +98,27 @@ io.on("connection", (socket) => {
 
       // Confirm join
       socket.emit("workspace:joined", { workspaceId })
+
+      // Check for active indexing job and send current state
+      const indexJobs = await getIndexJobsCollection()
+      const activeJob = await indexJobs.findOne({ 
+        workspaceId: new ObjectId(workspaceId),
+        status: "in-progress"
+      })
+
+      if (activeJob) {
+        logger.socket(`📤 Sending current job state to newly joined user`)
+        // Send current progress immediately to this socket
+        socket.emit("index:progress", {
+          workspaceId,
+          phase: "processing",
+          totalDocuments: activeJob.progress.totalDocuments,
+          processedDocuments: activeJob.progress.processedDocuments,
+          totalPages: activeJob.progress.totalPages,
+          processedPages: activeJob.progress.processedPages,
+          analyzedPages: activeJob.progress.analyzedPages,
+        })
+      }
     } catch (error) {
       logger.error("❌ Error joining workspace:", error)
       socket.emit("error", { message: "Failed to join workspace" })
@@ -123,5 +147,10 @@ httpServer.listen(PORT, () => {
   logger.success(`⚡ Socket.io Server: ws://localhost:${PORT}`)
   logger.info(`📡 Waiting for connections...`)
   logger.info("")
+
+  // Resume any in-progress jobs
+  resumeInProgressJobs(io).catch((error) => {
+    logger.error(`Failed to resume jobs: ${error.message}`)
+  })
 })
 

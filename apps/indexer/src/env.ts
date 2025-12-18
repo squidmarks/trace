@@ -20,6 +20,13 @@ const required = [
   "WEB_APP_URL",
 ]
 
+// Optional model configuration (with defaults)
+const optional: Record<string, string> = {
+  ANALYSIS_MODEL: "gpt-4o-mini",
+  EMBEDDING_MODEL: "text-embedding-3-small",
+  CHAT_MODEL: "gpt-4o-mini",
+}
+
 const missing: string[] = []
 for (const key of required) {
   if (!process.env[key]) {
@@ -29,6 +36,13 @@ for (const key of required) {
 
 if (missing.length > 0) {
   throw new Error(`Missing required environment variables: ${missing.join(", ")}`)
+}
+
+// Set defaults for optional vars
+for (const [key, defaultValue] of Object.entries(optional)) {
+  if (!process.env[key]) {
+    process.env[key] = defaultValue
+  }
 }
 
 console.log("✅ Environment variables loaded and validated")

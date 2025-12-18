@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { FileText, CheckCircle2 } from "lucide-react"
 import type { WorkspaceWithRole } from "@trace/shared"
 
 export default function WorkspacesPage() {
@@ -132,11 +133,15 @@ export default function WorkspacesPage() {
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
                   <div className="flex items-center gap-2">
                     {(workspace as any).documentCount > 0 && (
-                      <span>📄 {(workspace as any).documentCount}</span>
+                      <span className="flex items-center gap-1">
+                        <FileText size={14} />
+                        {(workspace as any).documentCount}
+                      </span>
                     )}
                     {(workspace as any).pageCount > 0 && (
-                      <span className="text-green-600 dark:text-green-400 font-medium">
-                        ✅ {(workspace as any).pageCount} pages
+                      <span className="text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                        <CheckCircle2 size={14} />
+                        {(workspace as any).pageCount} pages
                       </span>
                     )}
                   </div>

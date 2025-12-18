@@ -82,6 +82,24 @@ export async function POST(request: NextRequest) {
       description: body.description?.trim(),
       members: [],
       indexStatus: "idle" as const,
+      config: {
+        indexing: {
+          renderDpi: 150,
+          renderQuality: 85,
+          analysisModel: "gpt-4o-mini",
+          analysisTemperature: 0.1,
+          analysisDetail: "auto",
+        },
+        search: {
+          maxResults: 25,
+          minConfidence: 0.7,
+        },
+        chat: {
+          model: "gpt-4o-mini",
+          temperature: 0.7,
+          maxTokens: 2000,
+        },
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
     }
