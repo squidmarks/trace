@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Trash2, FileSearch, XCircle, CheckCircle2, AlertCircle, Cog, FileText, Link as LinkIcon, Sparkles } from "lucide-react"
+import { Trash2, FileSearch, XCircle, CheckCircle2, AlertCircle, Cog, FileText, Link as LinkIcon, Sparkles, Search } from "lucide-react"
 import type { Document as TraceDocument, Workspace, Role } from "@trace/shared"
 import DocumentUpload from "@/components/DocumentUpload"
 import AddFromUrlModal from "@/components/AddFromUrlModal"
@@ -279,20 +279,40 @@ export default function DocumentsPage() {
                 <p className="text-gray-600 dark:text-gray-400">{workspace.description}</p>
               )}
             </div>
-            
-            {role === "owner" && (
-              <ConfirmButton
-                onConfirm={handleDeleteWorkspace}
-                confirmText="Delete"
-                className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition px-3 py-1 flex items-center gap-1"
-                confirmClassName="text-sm bg-red-600 text-white hover:bg-red-700 px-3 py-1 rounded"
-                cancelClassName="text-sm bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-400 dark:hover:bg-gray-500 px-3 py-1 rounded"
-              >
-                <Trash2 size={16} />
-                Delete Workspace
-              </ConfirmButton>
-            )}
+            <ConfirmButton
+              onConfirm={handleDeleteWorkspace}
+              className="text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-2 px-3 py-2"
+              confirmText="Yes, delete"
+              cancelText="Cancel"
+            >
+              <Trash2 size={18} />
+              Delete Workspace
+            </ConfirmButton>
           </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-8">
+            <Link
+              href={`/workspaces/${params.id}/documents`}
+              className="border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600 dark:text-blue-400"
+            >
+              <div className="flex items-center gap-2">
+                <FileText size={18} />
+                Documents
+              </div>
+            </Link>
+            <Link
+              href={`/workspaces/${params.id}/search`}
+              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              <div className="flex items-center gap-2">
+                <Search size={18} />
+                Search
+              </div>
+            </Link>
+          </nav>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">

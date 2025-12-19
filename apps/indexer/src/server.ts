@@ -154,3 +154,40 @@ httpServer.listen(PORT, () => {
   })
 })
 
+// Graceful shutdown
+async function gracefulShutdown(signal: string) {
+  logger.info(`\n${signal} received, shutting down gracefully...`)
+  
+  // Close HTTP server
+  httpServer.close(() => {
+    logger.info("HTTP server closed")
+  })
+
+  // Close Socket.io connections
+  io.close(() => {
+    logger.info("Socket.io server closed")
+  })
+
+  // Close MongoDB connection
+  const { closeDatabase } = await import("./lib/db")
+  await closeDatabase()
+
+  logger.info("Shutdown complete")
+  process.exit(0)
+}
+
+// Handle shutdown signals
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"))
+process.on("SIGINT", () => gracefulShutdown("SIGINT"))
+
+// Handle uncaught errors
+process.on("uncaughtException", (error) => {
+  logger.error("Uncaught Exception:", error)
+  gracefulShutdown("UNCAUGHT_EXCEPTION")
+})
+
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Unhandled Rejection at:", promise, "reason:", reason)
+  gracefulShutdown("UNHANDLED_REJECTION")
+})
+

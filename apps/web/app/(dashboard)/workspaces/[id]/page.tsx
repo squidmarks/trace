@@ -110,19 +110,57 @@ export default function WorkspaceDetailPage() {
             </span>
           </div>
 
-          <div className="space-y-4">
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <CheckCircle2 size={20} className="text-green-600 dark:text-green-400" />
-                Workspace Created Successfully!
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Your workspace has been created. The full workspace interface with document management, 
-                search, and chat will be available in Phase 1.
-              </p>
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Quick Actions</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Link
+                  href={`/workspaces/${params.id}/documents`}
+                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition"
+                >
+                  <div className="flex items-start gap-3">
+                    <FileText size={24} className="text-blue-600 dark:text-blue-400" />
+                    <div>
+                      <h3 className="font-semibold mb-1">Documents</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Upload and manage PDF documents
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/workspaces/${params.id}/search`}
+                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition"
+                >
+                  <div className="flex items-start gap-3">
+                    <Search size={24} className="text-blue-600 dark:text-blue-400" />
+                    <div>
+                      <h3 className="font-semibold mb-1">Search</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Search indexed pages semantically
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+
+                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg opacity-50">
+                  <div className="flex items-start gap-3">
+                    <MessageSquare size={24} className="text-gray-400" />
+                    <div>
+                      <h3 className="font-semibold mb-1">Chat</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Coming in Phase 5
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
+            {/* Stats */}
+            <div className="grid md:grid-cols-3 gap-4">
               <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                 <h3 className="font-semibold mb-2">Status</h3>
                 <p className="text-sm">
@@ -138,37 +176,18 @@ export default function WorkspaceDetailPage() {
               </div>
 
               <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                <h3 className="font-semibold mb-2">Created</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {new Date(workspace.createdAt).toLocaleString()}
+                <h3 className="font-semibold mb-2">Documents</h3>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {stats?.documentCount || 0}
                 </p>
               </div>
-            </div>
 
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold mb-3">Coming in Phase 1:</h3>
-              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <li className="flex items-center gap-2">
-                  <FileText size={16} />
-                  Document upload and management
-                </li>
-                <li className="flex items-center gap-2">
-                  <Zap size={16} />
-                  Real-time indexing progress via Socket.io
-                </li>
-                <li className="flex items-center gap-2">
-                  <Search size={16} />
-                  Search and explore (Phase 4)
-                </li>
-                <li className="flex items-center gap-2">
-                  <MessageSquare size={16} />
-                  AI chat assistant (Phase 5)
-                </li>
-                <li className="flex items-center gap-2">
-                  <MessageSquare size={16} />
-                  Workspace ontology (Phase 6)
-                </li>
-              </ul>
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <h3 className="font-semibold mb-2">Indexed Pages</h3>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {stats?.pageCount || 0}
+                </p>
+              </div>
             </div>
           </div>
         </div>

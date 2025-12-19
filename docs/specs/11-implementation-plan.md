@@ -4,12 +4,14 @@ This document outlines the phased implementation approach for building Trace fro
 
 ## Overview
 
-Trace will be built incrementally across **7 phases** (0-6), with each phase delivering working functionality. This approach allows for:
+Trace will be built incrementally across **8 phases** (0-6, plus 3.5), with each phase delivering working functionality. This approach allows for:
 
 - Early testing and validation
 - Iterative refinement
 - Manageable scope per phase
 - Working software at each milestone
+
+**Note**: Phase 4 has been revised to focus on **semantic search using rich analysis metadata** instead of vector embeddings. Embeddings can be added later if needed.
 
 ## Phase 0: Foundation (Week 1)
 
@@ -201,48 +203,70 @@ Trace will be built incrementally across **7 phases** (0-6), with each phase del
 
 ---
 
-## Phase 4: Embeddings & Search (Week 5)
+## Phase 4: Semantic Search (Week 5)
 
-**Goal**: Generate embeddings and implement hybrid search.
+**Goal**: Implement text-based semantic search using rich analysis metadata.
+
+**Note**: We're **skipping embeddings initially**. The rich semantic metadata (summary, topics, entities, anchors, relations) should provide excellent search results. We can add vector embeddings later if needed (e.g., embedding the summary text).
 
 ### Deliverables
 
-1. **Embeddings (Indexer)**
-   - Implement embed phase
-   - Synthesize embedding text from analysis
-   - Call OpenAI embeddings API
-   - Store vectors in MongoDB
-   - Batch requests for efficiency
-   - Emit progress via Socket.io
+1. **MongoDB Text Search Setup**
+   - Create text indexes on analysis fields:
+     - `analysis.summary` (weighted high)
+     - `analysis.topics` (array of keywords)
+     - `analysis.entities.value` (parts, specifications)
+     - `analysis.anchors.label` (diagram sections)
+     - `analysis.relations.note` (connection descriptions)
+   - Configure index weights for relevance
+   - Test search queries and tune scoring
 
-2. **MongoDB Vector Search Setup**
-   - Create Atlas Vector Search index
-   - Test vector search queries
-   - Tune similarity thresholds
+2. **Search API**
+   - Implement `GET /api/workspaces/:id/search?q=...`
+   - Full-text search across indexed fields
+   - Return results with:
+     - Page data (image, metadata)
+     - Match scores
+     - Matched fields/snippets
+   - Pagination support
+   - Filter by document (optional)
 
-3. **Search API**
-   - Implement `GET /api/workspaces/:id/search`
-   - Implement hybrid search (vector + lexical)
-   - Merge and rank results
-   - Pagination
+3. **Search UI (Explore Tab)**
+   - Create Search/Explore tab in workspace
+   - Search input with real-time suggestions
+   - Results list showing:
+     - Page thumbnail (from imageData)
+     - Document name + page number
+     - Summary snippet with match highlights
+     - Matched topics/entities
+     - Relevance score
+   - Click result → view page details
+   - Empty state for no results
 
-4. **Explore UI**
-   - Create Explore tab
-   - Search input
-   - Results list (with thumbnails)
-   - Click result → page viewer
-   - Display match highlights
+4. **Page Viewer (Modal/Panel)**
+   - Display full page image
+   - Show metadata (summary, topics, entities, relations)
+   - Navigate between pages
+   - "View in document" link
 
 ### Acceptance Criteria
 
-- ✅ Embeddings generated for all pages
-- ✅ Search returns relevant results
+- ✅ Text indexes created and optimized
+- ✅ Search returns relevant results (test with various queries)
 - ✅ User can search and explore pages
-- ✅ Search quality is good (test queries)
+- ✅ Search quality is good for technical diagrams use case
+- ✅ Fast performance (< 500ms for typical queries)
+
+### Future Enhancement
+
+If search quality needs improvement, we can add:
+- Vector embeddings of page summaries
+- Hybrid search (text + vector)
+- This requires MongoDB Atlas for vector search
 
 ### Estimated Time
 
-5-7 days
+3-5 days (simpler without embeddings)
 
 ---
 
