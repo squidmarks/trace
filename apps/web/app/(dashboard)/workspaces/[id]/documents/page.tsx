@@ -405,7 +405,7 @@ export default function DocumentsPage() {
                   {indexProgress.phase === "processing" && (
                     <>
                       <Cog size={20} className="animate-spin" />
-                      Processing document...
+                      {indexProgress.message || "Processing document..."}
                     </>
                   )}
                 </span>
@@ -431,6 +431,14 @@ export default function DocumentsPage() {
                   : indexProgress.processedPages
                 const percentage = Math.round((currentProgress / indexProgress.totalPages) * 100)
                 
+                // Format ETA
+                const formatEta = (seconds: number) => {
+                  if (seconds < 60) return `~${seconds}s`
+                  const minutes = Math.floor(seconds / 60)
+                  const secs = seconds % 60
+                  return secs > 0 ? `~${minutes}m ${secs}s` : `~${minutes}m`
+                }
+                
                 return (
                   <div className="mb-2">
                     <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
@@ -452,6 +460,11 @@ export default function DocumentsPage() {
                         }}
                       />
                     </div>
+                    {indexProgress.etaSeconds && indexProgress.etaSeconds > 0 && (
+                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 text-right">
+                        Est. {formatEta(indexProgress.etaSeconds)} remaining
+                      </div>
+                    )}
                   </div>
                 )
               })()}

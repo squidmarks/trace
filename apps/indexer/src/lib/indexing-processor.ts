@@ -234,13 +234,33 @@ export async function processIndexJob(
         const needsRendering = !isResume || existingPageCount === 0
         
         if (needsRendering) {
-          // Fetch and render document
-          logger.info(`📥 Fetching and rendering document...`)
+          // Emit "Downloading document..." if from URL
+          const isFromUrl = doc.sourceType === "url"
+          if (isFromUrl) {
+            logger.info(`📥 Downloading document from URL...`)
+            io.to(`workspace:${workspaceId}`).emit("index:progress", {
+              workspaceId,
+              phase: "processing",
+              currentDocument: {
+                id: docId,
+                filename,
+                current: job.progress.processedDocuments + 1,
+                total: docsToProcess.length,
+              },
+              totalDocuments: docsToProcess.length,
+              processedDocuments: job.progress.processedDocuments,
+              totalPages: job.progress.totalPages || 0,
+              processedPages: job.progress.processedPages || 0,
+              analyzedPages: job.progress.analyzedPages || 0,
+              message: "Downloading document...",
+            })
+          }
           
+          // Fetch document
           const fetchedDoc = await fetchDocument(docId)
           
-          // Emit "Opening document..." progress
-          logger.info(`📖 Opening document for rendering...`)
+          // Emit "Preparing to parse..." progress
+          logger.info(`📖 Preparing to parse document...`)
           io.to(`workspace:${workspaceId}`).emit("index:progress", {
             workspaceId,
             phase: "processing",
@@ -255,9 +275,11 @@ export async function processIndexJob(
             totalPages: job.progress.totalPages || 0,
             processedPages: job.progress.processedPages || 0,
             analyzedPages: job.progress.analyzedPages || 0,
+            message: "Preparing to parse...",
           })
         
           // Render pages one at a time, saving each immediately
+          const renderStartTime = Date.now()
           const renderedPages = await renderPdfToImages(
           fetchedDoc.buffer,
           {
@@ -307,6 +329,12 @@ export async function processIndexJob(
               }
             )
             
+            // Calculate ETA for rendering
+            const elapsed = Date.now() - renderStartTime
+            const avgTimePerPage = elapsed / current
+            const remainingPages = total - current
+            const etaSeconds = Math.round((avgTimePerPage * remainingPages) / 1000)
+            
             // Fetch fresh job state for accurate progress
             const freshJob = await indexJobs.findOne({ _id: job._id })
             
@@ -325,6 +353,8 @@ export async function processIndexJob(
               totalPages: freshJob?.progress.totalPages || total,
               processedPages: freshJob?.progress.processedPages || 0,
               analyzedPages: freshJob?.progress.analyzedPages || 0,
+              message: `Parsing document... (${current}/${total} pages)`,
+              etaSeconds: etaSeconds > 0 ? etaSeconds : undefined,
             })
           }
           )
@@ -354,8 +384,8 @@ export async function processIndexJob(
         
         logger.info(`🤖 Analyzing ${pagesToAnalyze.length} pages (${allPages.length - pagesToAnalyze.length} already analyzed)...`)
         
-        // Emit progress update showing transition to analysis phase
-        const currentJob = await indexJobs.findOne({ _id: job._id })
+        // Emit "Preparing for document analysis..." message
+        const currentJobBeforeAnalysis = await indexJobs.findOne({ _id: job._id })
         io.to(`workspace:${workspaceId}`).emit("index:progress", {
           workspaceId,
           phase: "processing",
@@ -366,14 +396,16 @@ export async function processIndexJob(
             total: docsToProcess.length,
           },
           totalDocuments: docsToProcess.length,
-          processedDocuments: currentJob?.progress.processedDocuments || job.progress.processedDocuments,
+          processedDocuments: currentJobBeforeAnalysis?.progress.processedDocuments || job.progress.processedDocuments,
           totalPages: allPages.length,
-          processedPages: currentJob?.progress.processedPages || allPages.length,
-          analyzedPages: currentJob?.progress.analyzedPages || 0,
+          processedPages: currentJobBeforeAnalysis?.progress.processedPages || allPages.length,
+          analyzedPages: currentJobBeforeAnalysis?.progress.analyzedPages || 0,
+          message: "Preparing for document analysis...",
         })
-        logger.info(`📤 Sent analysis transition progress to UI`)
+        logger.info(`📤 Sent analysis preparation message to UI`)
         
         // Process each page that needs analysis
+        const analysisStartTime = Date.now()
         for (let i = 0; i < pagesToAnalyze.length; i++) {
           // Check if job was cancelled
           const currentJob = await indexJobs.findOne({ _id: job._id })
@@ -391,6 +423,13 @@ export async function processIndexJob(
 
           logger.info(`   🤖 Analyzing page ${pageNum}/${allPages.length} (image: ${imageSizeKB}KB)`)
 
+          // Calculate ETA for analysis
+          const analysisElapsed = Date.now() - analysisStartTime
+          const pagesAnalyzedSoFar = i + 1
+          const avgTimePerPage = analysisElapsed / pagesAnalyzedSoFar
+          const remainingPagesToAnalyze = pagesToAnalyze.length - pagesAnalyzedSoFar
+          const analysisEtaSeconds = Math.round((avgTimePerPage * remainingPagesToAnalyze) / 1000)
+
           // Emit progress BEFORE starting analysis (so user sees immediate update)
           const preAnalysisJob = await indexJobs.findOne({ _id: job._id })
           io.to(`workspace:${workspaceId}`).emit("index:progress", {
@@ -407,6 +446,8 @@ export async function processIndexJob(
             totalPages: allPages.length,
             processedPages: preAnalysisJob?.progress.processedPages || job.progress.processedPages,
             analyzedPages: preAnalysisJob?.progress.analyzedPages || job.progress.analyzedPages,
+            message: `Analyzing document... (${preAnalysisJob?.progress.analyzedPages || 0}/${allPages.length} pages)`,
+            etaSeconds: i > 0 && analysisEtaSeconds > 0 ? analysisEtaSeconds : undefined,
           })
 
           // Analyze page

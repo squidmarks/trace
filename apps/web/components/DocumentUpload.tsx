@@ -20,7 +20,8 @@ export default function DocumentUpload({ workspaceId, onUploadComplete }: Docume
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setError("File size exceeds 10MB limit (MongoDB constraint)")
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+      setError(`File size (${sizeMB}MB) exceeds the 10MB browser upload limit. Please use "Add from URL" for larger files.`)
       return
     }
 
@@ -143,9 +144,10 @@ export default function DocumentUpload({ workspaceId, onUploadComplete }: Docume
               Select PDF File
             </button>
             <p className="mt-2 text-xs text-gray-500">
-              Maximum file size: 10MB (MongoDB limit)
-              <br />
-              Larger files will be supported with object storage in Phase 2+
+              Maximum file size: 10MB for browser uploads
+            </p>
+            <p className="mt-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+              💡 For larger files, use "Add from URL" below
             </p>
           </>
         )}
