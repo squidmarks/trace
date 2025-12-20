@@ -2,7 +2,7 @@
 
 Track the implementation status of Trace across all phases.
 
-**Last Updated**: December 19, 2025
+**Last Updated**: December 20, 2025
 
 ---
 
@@ -15,11 +15,11 @@ Track the implementation status of Trace across all phases.
 | Phase 2: PDF Rendering | ✅ Complete | 100% | Dec 17 | Dec 17 |
 | Phase 3: AI Analysis | ✅ Complete | 100% | Dec 17 | Dec 17 |
 | Phase 3.5: Job Queue + Cost Tracking | ✅ Complete | 100% | Dec 18 | Dec 18 |
-| Phase 4: Semantic Search | ✅ Complete | 100% | Dec 19 | Dec 19 |
-| Phase 5: Chat System | ⏳ Not Started | 0% | - | - |
+| Phase 4: Semantic Search + Event System | ✅ Complete | 100% | Dec 19 | Dec 20 |
+| Phase 5: Chat System | 🔄 In Progress | 0% | Dec 20 | - |
 | Phase 6: Ontology + Polish | ⏳ Not Started | 0% | - | - |
 
-**Overall Progress**: 69% (5.5/8 phases complete)
+**Overall Progress**: 75% (6/8 phases complete)
 
 ---
 
@@ -545,6 +545,12 @@ npm run format:check
 
 | Commit | Date | Phase | Description |
 |--------|------|-------|-------------|
+| `7ed9af8` | Dec 20 | Phase 4 | Phase 4: Semantic Search + Event System Refactor |
+| `9eb07ad` | Dec 19 | Phase 4 | Phase 4: Semantic Search (MongoDB text search) |
+| `7c52914` | Dec 18 | Phase 3.5 | Session 2: Smart re-indexing, config, abort, UI polish |
+| `c5f3b19` | Dec 18 | Phase 3.5 | Phase 3.5: Job queue, cost tracking, incremental saves |
+| `4aef38e` | Dec 17 | Phase 3 | Phase 3: AI Analysis complete |
+| `c76f0e5` | Dec 17 | Phase 2 | Phase 2: PDF Rendering with Poppler |
 | `7ee12df` | Dec 17 | Phase 1 | Documents + Socket.io complete |
 | `1302aea` | Dec 17 | Phase 0 | Fix workspace list link |
 | `11c1112` | Dec 17 | Phase 0 | Add workspace detail placeholder |
@@ -748,13 +754,16 @@ Tested with 171-page PDF:
 
 ---
 
-## Phase 4: Semantic Search ✅
+## Phase 4: Semantic Search + Event System ✅
 
 **Status**: Complete  
-**Duration**: ~2 hours  
-**Completed**: December 19, 2025
+**Duration**: ~4 hours (2 sessions)  
+**Completed**: December 20, 2025  
+**Commits**: `9eb07ad`, `7ed9af8`
 
-### Completed Items
+### Session 1 (Dec 19): Core Search Implementation
+
+#### Completed Items
 
 - ✅ **MongoDB Text Search Indexes**
   - Created weighted text indexes on `pages` collection
@@ -795,6 +804,67 @@ Tested with 171-page PDF:
   - **Web App**: Added connection pooling limits
   - Reduced MongoDB Atlas load by ~80%
 
+### Session 2 (Dec 20): Event System Refactor & Auto-Indexing
+
+#### Event System Refactor (Major Improvement)
+
+- ✅ **EventContext Provider** (`apps/web/contexts/EventContext.tsx`)
+  - Centralized Socket.io connection management
+  - Type-safe event subscription system
+  - Automatic workspace room joining/leaving
+  - Connection state management with reconnection handling
+  - Memory-efficient with refs to prevent re-render loops
+
+- ✅ **Event Hooks**
+  - `useEvents()` - Base hook for event context
+  - `useIndexProgress(workspaceId, onProgress?)` - Subscribe to progress
+  - `useIndexComplete(workspaceId, onComplete?)` - Subscribe to completion
+  - `useIndexError(workspaceId, onError?)` - Subscribe to errors
+  - `useIndexEvents(workspaceId, callbacks)` - All-in-one hook
+
+- ✅ **Socket.io Reconnection Fixes**
+  - Fixed race condition on page refresh (socket not ready)
+  - Auto-rejoin workspace rooms on reconnect
+  - Wait for connection before attempting to join
+  - Split event subscription from workspace join (separate useEffects)
+  - Store current workspace for reconnection
+  - No more "Cannot join workspace - not connected" errors
+
+- ✅ **Code Reduction**
+  - Before: 100+ lines of Socket.io boilerplate per component
+  - After: 10 lines using `useIndexEvents` hook
+  - Single socket connection per app (no duplicates)
+  - Type-safe event handling throughout
+
+#### Auto-Initializing Search Indexes
+
+- ✅ **Automatic Index Creation** (`apps/web/lib/search-indexes.ts`)
+  - `ensureSearchIndexes()` - Check and create indexes on demand
+  - Runs once per app startup (cached flag)
+  - Creates text indexes on first search request
+  - Graceful error handling with helpful messages
+  - Idempotent (safe to call multiple times)
+
+- ✅ **Zero Manual Setup**
+  - No need to run `npm run setup:search` for new installations
+  - Indexes created automatically on first search
+  - Works in all environments (dev, staging, production)
+  - Setup script now optional (useful for pre-seeding)
+
+- ✅ **Updated Documentation**
+  - README.md: Note that text indexes are automatic
+  - scripts/setup-search-indexes.ts: Clarified it's optional
+  - Search API: Calls `ensureSearchIndexes()` before searching
+
+#### Documentation
+
+- ✅ **EVENT-SYSTEM-ARCHITECTURE.md**
+  - Complete documentation of event system
+  - Architecture diagrams (mermaid)
+  - Migration guide (old vs new patterns)
+  - Usage examples
+  - Benefits and scalability notes
+
 ### What Works
 
 - Users can search across all indexed pages in a workspace
@@ -804,14 +874,25 @@ Tested with 171-page PDF:
 - Tab navigation between Documents and Search pages
 - MongoDB connections properly managed and closed
 - Services gracefully shutdown on Ctrl+C
+- Search indexes automatically created (no manual setup)
+- Socket.io reconnection works reliably
+- Single socket connection with type-safe event handling
+- Page refresh maintains indexing progress state
 
 ### Key Files
 
 **Search Implementation**:
-- `scripts/setup-search-indexes.ts` - Index setup script
+- `scripts/setup-search-indexes.ts` - Optional index setup script
+- `apps/web/lib/search-indexes.ts` - Auto-index creation
 - `apps/web/app/api/workspaces/[id]/search/route.ts` - Search API
 - `apps/web/app/(dashboard)/workspaces/[id]/search/page.tsx` - Search UI
 - `apps/web/app/(dashboard)/workspaces/[id]/documents/page.tsx` - Updated with tabs
+
+**Event System**:
+- `apps/web/contexts/EventContext.tsx` - Event provider and hooks
+- `apps/web/components/Providers.tsx` - App-level providers
+- `apps/web/app/layout.tsx` - Wrapped with EventProvider
+- `EVENT-SYSTEM-ARCHITECTURE.md` - Complete documentation
 
 **MongoDB Connection Fixes**:
 - `apps/indexer/src/lib/db.ts` - Singleton pattern + pooling + graceful close
@@ -835,21 +916,35 @@ Tested with 171-page PDF:
 
 ---
 
-## Next Session TODO
+## Next: Phase 5 (Chat System)
 
-When continuing development:
+**Starting**: December 20, 2025
 
-1. **Test Phase 4** (if not already done):
-   - Run `npm run setup:search` to create indexes
-   - Try various search queries
-   - Test relevance ranking
-   - Monitor MongoDB connection count
+### Phase 5 Deliverables
 
-2. **Begin Phase 5** (Chat System):
-   - Implement workspace-scoped chat sessions
-   - Create chat API with tool endpoints
-   - Build chat UI component
-   - Integrate `searchPages` and `getPage` tools
+1. **Chat Session Schema & API**:
+   - MongoDB schema for chat sessions and messages
+   - `POST /api/workspaces/:id/chat` - Create chat session
+   - `GET /api/workspaces/:id/chat` - List sessions
+   - `GET /api/workspaces/:id/chat/:sessionId` - Get session
+   - `POST /api/workspaces/:id/chat/:sessionId/messages` - Send message
+
+2. **Tool Endpoints**:
+   - `searchPages(query, limit)` - Search workspace pages
+   - `getPage(pageId)` - Retrieve specific page details
+
+3. **Chat UI**:
+   - Chat tab on workspace page
+   - Message list with user/assistant bubbles
+   - Input field with send button
+   - Tool usage indicators (e.g., "Searching 20 pages...")
+   - Citation links to pages
+
+4. **OpenAI Integration**:
+   - Streaming chat completions
+   - Function calling with tool schemas
+   - Tool execution and response injection
+   - Error handling and retry logic
 
 ---
 
