@@ -1,5 +1,6 @@
 import { getToken } from "next-auth/jwt"
 import type { Socket } from "socket.io"
+import type { Request, Response, NextFunction } from "express"
 import { getWorkspaceRole } from "./permissions.js"
 
 /**
@@ -69,5 +70,45 @@ export async function verifyWorkspaceAccess(
 ): Promise<boolean> {
   const role = await getWorkspaceRole(workspaceId, userId)
   return role !== null
+}
+
+/**
+ * Express middleware to verify service token for inter-service communication
+ * Used by tool endpoints that are called by the Web App
+ */
+export function verifyServiceToken(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authHeader = req.headers.authorization
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: "Unauthorized: Missing or invalid Authorization header",
+      })
+    }
+
+    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+    const expectedToken = process.env.INDEXER_SERVICE_TOKEN
+
+    if (!expectedToken) {
+      console.error("[Auth] INDEXER_SERVICE_TOKEN not configured")
+      return res.status(500).json({
+        error: "Service authentication not configured",
+      })
+    }
+
+    if (token !== expectedToken) {
+      return res.status(401).json({
+        error: "Unauthorized: Invalid service token",
+      })
+    }
+
+    // Token is valid, proceed
+    next()
+  } catch (error) {
+    console.error("[Auth] Service token verification error:", error)
+    return res.status(500).json({
+      error: "Authentication failed",
+    })
+  }
 }
 

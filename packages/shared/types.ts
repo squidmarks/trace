@@ -213,33 +213,53 @@ export interface Ontology {
 // Chat
 // ============================================================================
 
-export type MessageRole = "user" | "assistant" | "system"
+export type MessageRole = "user" | "assistant" | "system" | "tool"
 
 export interface Citation {
-  documentId: ObjectId
-  pageNumber: number
+  pageId: ObjectId         // Reference to Page._id
+  documentId: ObjectId     // Reference to Document._id
+  pageNumber: number       // For display
+  excerpt?: string         // Optional text excerpt that was relevant
 }
 
 export interface ToolCall {
-  tool: string
-  args: any
-  result: any
+  id: string               // Unique ID for this tool call (from OpenAI)
+  name: string             // Tool name ("searchPages" | "getPage")
+  arguments: Record<string, any>  // Tool arguments (parsed JSON)
+  result?: any             // Tool execution result
 }
 
 export interface ChatMessage {
-  role: MessageRole
-  content: any
-  createdAt: Date
-  citations?: Citation[]
-  toolCalls?: ToolCall[]
+  _id?: string             // Optional ID for message tracking
+  role: MessageRole        // Message role
+  content: string          // Message content (text)
+  createdAt: Date          // When message was created
+  
+  // Assistant-specific fields
+  citations?: Citation[]   // Pages referenced in response
+  toolCalls?: ToolCall[]   // Tools called by assistant
+  
+  // Tool response fields (for role: "tool")
+  toolCallId?: string      // Links tool response to tool call
+  
+  // Metadata
+  model?: string           // OpenAI model used (for assistant messages)
+  finishReason?: string    // Why generation stopped
+  tokenUsage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+  cost?: number            // USD cost of this message
 }
 
 export interface ChatSession {
   _id: ObjectId
   workspaceId: ObjectId
   userId: ObjectId
-  title?: string
-  messages: ChatMessage[]
+  title?: string           // Optional custom title (defaults to first message)
+  messages: ChatMessage[]  // All messages in conversation
+  totalCost: number        // Total USD cost of all messages
   createdAt: Date
   updatedAt: Date
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Trash2, FileSearch, XCircle, CheckCircle2, AlertCircle, Cog, FileText, Link as LinkIcon, Sparkles, Search } from "lucide-react"
+import { Trash2, FileSearch, XCircle, CheckCircle2, AlertCircle, Cog, FileText, Link as LinkIcon, Sparkles, Search, MessageSquare } from "lucide-react"
 import type { Document as TraceDocument, Workspace, Role } from "@trace/shared"
 import DocumentUpload from "@/components/DocumentUpload"
 import AddFromUrlModal from "@/components/AddFromUrlModal"
@@ -234,6 +234,15 @@ export default function DocumentsPage() {
               <div className="flex items-center gap-2">
                 <Search size={18} />
                 Search
+              </div>
+            </Link>
+            <Link
+              href={`/workspaces/${params.id}/chat`}
+              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              <div className="flex items-center gap-2">
+                <MessageSquare size={18} />
+                Chat
               </div>
             </Link>
           </nav>

@@ -65,10 +65,44 @@ export const searchQuerySchema = z.object({
 // Chat Validators
 // ============================================================================
 
-export const chatRequestSchema = z.object({
-  sessionId: z.string().optional(),
-  message: z.string().min(1).max(10000),
-  model: z.string().optional()
+export const createChatSessionSchema = z.object({
+  title: z.string().min(1).max(200).optional()
+})
+
+export const sendMessageSchema = z.object({
+  content: z.string().min(1).max(10000)
+})
+
+export const citationSchema = z.object({
+  pageId: z.string(),
+  documentId: z.string(),
+  pageNumber: z.number().int().min(1),
+  excerpt: z.string().optional()
+})
+
+export const toolCallSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  arguments: z.record(z.any()),
+  result: z.any().optional()
+})
+
+export const chatMessageSchema = z.object({
+  _id: z.string().optional(),
+  role: z.enum(["user", "assistant", "system", "tool"]),
+  content: z.string(),
+  createdAt: z.date(),
+  citations: z.array(citationSchema).optional(),
+  toolCalls: z.array(toolCallSchema).optional(),
+  toolCallId: z.string().optional(),
+  model: z.string().optional(),
+  finishReason: z.string().optional(),
+  tokenUsage: z.object({
+    promptTokens: z.number().int(),
+    completionTokens: z.number().int(),
+    totalTokens: z.number().int()
+  }).optional(),
+  cost: z.number().optional()
 })
 
 // ============================================================================
@@ -206,7 +240,8 @@ export type AddDocumentByUrlRequest = z.infer<typeof addDocumentByUrlSchema>
 export type IndexParams = z.infer<typeof indexParamsSchema>
 export type TriggerIndexRequest = z.infer<typeof triggerIndexSchema>
 export type SearchQuery = z.infer<typeof searchQuerySchema>
-export type ChatRequest = z.infer<typeof chatRequestSchema>
+export type CreateChatSessionRequest = z.infer<typeof createChatSessionSchema>
+export type SendMessageRequest = z.infer<typeof sendMessageSchema>
 export type AddMemberRequest = z.infer<typeof addMemberSchema>
 export type PageAnalysisInput = z.infer<typeof pageAnalysisSchema>
 export type OntologyInput = z.infer<typeof ontologySchema>

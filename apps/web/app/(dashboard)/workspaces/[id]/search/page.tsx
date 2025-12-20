@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
-import { Search, FileText, Loader2, AlertCircle } from "lucide-react"
+import { Search, FileText, Loader2, AlertCircle, MessageSquare } from "lucide-react"
 
 interface SearchResult {
   _id: string
@@ -128,6 +128,15 @@ export default function SearchPage() {
               <div className="flex items-center gap-2">
                 <Search size={18} />
                 Search
+              </div>
+            </Link>
+            <Link
+              href={`/workspaces/${params.id}/chat`}
+              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              <div className="flex items-center gap-2">
+                <MessageSquare size={18} />
+                Chat
               </div>
             </Link>
           </nav>

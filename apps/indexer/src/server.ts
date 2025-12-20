@@ -8,6 +8,7 @@ import { ObjectId } from "mongodb"
 import cors from "cors"
 import healthRouter from "./routes/health.js"
 import jobsRouter, { setSocketIo } from "./routes/jobs.js"
+import toolsRouter from "./routes/tools.js"
 import { socketAuthMiddleware, verifyWorkspaceAccess } from "./lib/auth.js"
 import { resumeInProgressJobs } from "./lib/indexing-processor.js"
 import { getIndexJobsCollection } from "./lib/db.js"
@@ -51,7 +52,8 @@ logger.info(`🔒 CORS enabled for: ${WEB_APP_URL}`)
 // Routes
 app.use(healthRouter)
 app.use(jobsRouter)
-logger.info("📍 Routes registered: /health, /jobs/start")
+app.use("/tools", toolsRouter)
+logger.info("📍 Routes registered: /health, /jobs/start, /tools/searchPages, /tools/getPage")
 
 // Create HTTP server
 const httpServer = createServer(app)
