@@ -108,6 +108,15 @@ io.on("connection", (socket) => {
 
       if (activeJob) {
         logger.socket(`📤 Sending current job state to newly joined user`)
+        
+        // Determine appropriate message based on progress
+        let message = "Resuming indexing..."
+        if (activeJob.progress.analyzedPages > 0 && activeJob.progress.analyzedPages < activeJob.progress.totalPages) {
+          message = `Analyzing document... (${activeJob.progress.analyzedPages}/${activeJob.progress.totalPages} pages)`
+        } else if (activeJob.progress.processedPages > 0 && activeJob.progress.processedPages < activeJob.progress.totalPages) {
+          message = `Parsing document... (${activeJob.progress.processedPages}/${activeJob.progress.totalPages} pages)`
+        }
+        
         // Send current progress immediately to this socket
         socket.emit("index:progress", {
           workspaceId,
@@ -117,6 +126,7 @@ io.on("connection", (socket) => {
           totalPages: activeJob.progress.totalPages,
           processedPages: activeJob.progress.processedPages,
           analyzedPages: activeJob.progress.analyzedPages,
+          message,
         })
       }
     } catch (error) {

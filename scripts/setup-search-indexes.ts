@@ -1,8 +1,14 @@
 /**
  * Setup MongoDB text search indexes for semantic search
  * 
- * Run this script once to create the necessary indexes:
- * npx tsx scripts/setup-search-indexes.ts
+ * NOTE: This script is OPTIONAL. The application will automatically create
+ * search indexes on first use. This script is provided for:
+ * - Pre-creating indexes in production before first search
+ * - Manually rebuilding indexes if needed
+ * - CI/CD pipelines that want to ensure indexes exist
+ * 
+ * Run this script:
+ * npm run setup:search
  */
 
 import { MongoClient } from "mongodb"

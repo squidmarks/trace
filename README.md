@@ -306,7 +306,12 @@ npm run dev
 
 1. Create MongoDB Atlas cluster (free tier)
 2. Create database: `trace`
-3. Create vector search index on `pages` collection:
+3. Whitelist your IP address
+4. Get connection string: `mongodb+srv://username:password@cluster.mongodb.net/trace?retryWrites=true&w=majority`
+
+**Note**: Text search indexes are automatically created on first search. No manual setup required!
+
+**Optional**: For vector search (Phase 5), create vector search index on `pages` collection:
 
 ```json
 {

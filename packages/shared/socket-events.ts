@@ -48,37 +48,42 @@ export interface WorkspaceLeftEvent {
 }
 
 /**
- * Indexing has started
- */
-export interface IndexStartedEvent {
-  // No additional data
-}
-
-/**
  * Indexing progress update
  */
 export interface IndexProgressEvent {
-  phase: IndexPhase
-  docsDone: number
-  docsTotal: number
-  pagesDone: number
-  pagesTotal: number
-  documentId?: string  // Current document being processed
+  workspaceId: string
+  phase: "processing"
+  currentDocument?: {
+    id: string
+    filename: string
+    current: number
+    total: number
+  }
+  totalDocuments: number
+  processedDocuments: number
+  totalPages: number
+  processedPages: number
+  analyzedPages: number
+  message?: string
+  etaSeconds?: number
 }
 
 /**
  * Indexing completed successfully
  */
-export interface IndexReadyEvent {
+export interface IndexCompleteEvent {
+  workspaceId: string
+  documentCount: number
   pageCount: number
+  cost: number
 }
 
 /**
  * Indexing failed
  */
-export interface IndexFailedEvent {
+export interface IndexErrorEvent {
+  workspaceId: string
   error: string
-  phase: IndexPhase
 }
 
 /**
@@ -107,10 +112,9 @@ export const ClientEvents = {
 export const ServerEvents = {
   WORKSPACE_JOINED: "workspace:joined",
   WORKSPACE_LEFT: "workspace:left",
-  INDEX_STARTED: "index:started",
   INDEX_PROGRESS: "index:progress",
-  INDEX_READY: "index:ready",
-  INDEX_FAILED: "index:failed",
+  INDEX_COMPLETE: "index:complete",
+  INDEX_ERROR: "index:error",
   ERROR: "error",
   CONNECT: "connect",
   DISCONNECT: "disconnect",
@@ -127,10 +131,9 @@ export const ServerEvents = {
 export interface ServerToClientEvents {
   [ServerEvents.WORKSPACE_JOINED]: (data: WorkspaceJoinedEvent) => void
   [ServerEvents.WORKSPACE_LEFT]: (data: WorkspaceLeftEvent) => void
-  [ServerEvents.INDEX_STARTED]: (data: IndexStartedEvent) => void
   [ServerEvents.INDEX_PROGRESS]: (data: IndexProgressEvent) => void
-  [ServerEvents.INDEX_READY]: (data: IndexReadyEvent) => void
-  [ServerEvents.INDEX_FAILED]: (data: IndexFailedEvent) => void
+  [ServerEvents.INDEX_COMPLETE]: (data: IndexCompleteEvent) => void
+  [ServerEvents.INDEX_ERROR]: (data: IndexErrorEvent) => void
   [ServerEvents.ERROR]: (data: ErrorEvent) => void
 }
 

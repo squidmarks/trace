@@ -150,6 +150,7 @@ export async function processIndexJob(
       totalPages: job.progress.totalPages,
       processedPages: job.progress.processedPages,
       analyzedPages: job.progress.analyzedPages,
+      message: "Starting indexing job...",
     })
     logger.info(`📤 Sent initial progress to UI`)
 
@@ -177,6 +178,7 @@ export async function processIndexJob(
         totalPages: job.progress.totalPages || 0,
         processedPages: job.progress.processedPages || 0,
         analyzedPages: job.progress.analyzedPages || 0,
+        message: "Starting document processing...",
       })
 
       // Check existing pages
@@ -214,6 +216,7 @@ export async function processIndexJob(
         totalPages: currentJob?.progress.totalPages || 0,
         processedPages: currentJob?.progress.processedPages || 0,
         analyzedPages: currentJob?.progress.analyzedPages || 0,
+        message: "Initializing document...",
       })
 
       try {
@@ -499,6 +502,13 @@ export async function processIndexJob(
 
             logger.info(`   ✅ Page ${pageNum} analyzed ($${cost.toFixed(4)}) | AI: ${(analysisTime/1000).toFixed(1)}s, DB: ${dbTime}ms, Job: ${jobTime}ms, Total: ${(totalTime/1000).toFixed(1)}s`)
 
+            // Recalculate ETA after this page completes
+            const analysisElapsedAfter = Date.now() - analysisStartTime
+            const pagesAnalyzedNow = i + 1
+            const avgTimePerPageAfter = analysisElapsedAfter / pagesAnalyzedNow
+            const remainingPagesAfter = pagesToAnalyze.length - pagesAnalyzedNow
+            const analysisEtaSecondsAfter = Math.round((avgTimePerPageAfter * remainingPagesAfter) / 1000)
+
             // Emit progress with updated values
             io.to(`workspace:${workspaceId}`).emit("index:progress", {
               workspaceId,
@@ -514,6 +524,8 @@ export async function processIndexJob(
               totalPages: allPages.length,
               processedPages: updatedJob?.progress.processedPages || job.progress.processedPages,
               analyzedPages: updatedJob?.progress.analyzedPages || job.progress.analyzedPages,
+              message: `Analyzing document... (${updatedJob?.progress.analyzedPages || 0}/${allPages.length} pages)`,
+              etaSeconds: analysisEtaSecondsAfter > 0 ? analysisEtaSecondsAfter : undefined,
             })
 
           } catch (error) {

@@ -8,6 +8,7 @@ import type { Document as TraceDocument, Workspace, Role } from "@trace/shared"
 import DocumentUpload from "@/components/DocumentUpload"
 import AddFromUrlModal from "@/components/AddFromUrlModal"
 import ConfirmButton from "@/components/ConfirmButton"
+import { useIndexEvents } from "@/contexts/EventContext"
 
 export default function DocumentsPage() {
   const params = useParams()
@@ -25,115 +26,38 @@ export default function DocumentsPage() {
     fetchDocuments()
   }, [params.id])
 
-  // Separate effect for Socket.io (only once)
-  useEffect(() => {
-    let hasJoined = false // Track if we've already joined to prevent duplicates
-    
-    // Set up Socket.io connection and listeners
-    const setupSocket = async () => {
-      const { getSocket, connectSocket, joinWorkspace } = await import("@/lib/socket")
+  // Subscribe to index events using the event system
+  useIndexEvents(params.id as string, {
+    onProgress: (data) => {
+      setIsIndexing(true) // Mark as indexing when we receive progress
+      setIndexProgress(data)
+    },
+    onComplete: (data) => {
+      setIsIndexing(false)
+      setIndexProgress({ phase: "complete", ...data })
+      fetchDocuments() // Refresh to show page counts
+      // Also refresh workspace info to update stats everywhere
+      setTimeout(() => {
+        setIndexProgress(null)
+        window.dispatchEvent(new Event("workspace-updated"))
+      }, 5000)
+    },
+    onError: (data) => {
+      setIsIndexing(false)
       
-      const socket = getSocket()
-      
-      // Connect socket
-      connectSocket()
-      
-      const handleConnect = async () => {
-        // Only join once per component mount
-        if (hasJoined) {
-          console.log("[Socket.io] Already joined, skipping duplicate join")
-          return
-        }
-        
-        console.log("[Socket.io] Connected to Indexer, joining workspace...")
-        try {
-          await joinWorkspace(params.id as string)
-          hasJoined = true
-        } catch (error) {
-          console.error("[Socket.io] Failed to join workspace:", error)
-        }
+      // If user cancelled, just clear progress immediately
+      if (data.error?.includes("cancelled") || data.error?.includes("Cancelled")) {
+        setIndexProgress(null)
+      } else {
+        // For actual errors, show error panel
+        setIndexProgress({
+          phase: "error",
+          error: data.error || "Indexing failed",
+        })
+        setTimeout(() => setIndexProgress(null), 10000)
       }
-
-      const handleDisconnect = (reason: string) => {
-        console.log(`[Socket.io] Disconnected: ${reason}`)
-        hasJoined = false // Reset on disconnect so we can rejoin on reconnect
-      }
-
-      // Index progress events
-      const handleIndexProgress = (data: any) => {
-        if (data.workspaceId === params.id) {
-          console.log("[Socket.io] Index progress:", data)
-          setIndexProgress(data)
-        }
-      }
-
-      const handleIndexComplete = (data: any) => {
-        if (data.workspaceId === params.id) {
-          console.log("[Socket.io] Index complete:", data)
-          setIsIndexing(false)
-          setIndexProgress({ phase: "complete", ...data })
-          fetchDocuments() // Refresh to show page counts
-          // Also refresh workspace info to update stats everywhere
-          setTimeout(() => {
-            setIndexProgress(null)
-            window.dispatchEvent(new Event("workspace-updated"))
-          }, 5000)
-        }
-      }
-
-      const handleIndexError = (data: any) => {
-        if (data.workspaceId === params.id) {
-          console.error("[Socket.io] Index error:", data)
-          setIsIndexing(false)
-          
-          // If user cancelled, just clear progress immediately
-          if (data.error?.includes("cancelled") || data.error?.includes("Cancelled")) {
-            console.log("[Socket.io] Indexing cancelled, clearing progress")
-            setIndexProgress(null)
-          } else {
-            // For actual errors, show error panel
-            setIndexProgress({
-              phase: "error",
-              error: data.error || "Indexing failed",
-            })
-            setTimeout(() => setIndexProgress(null), 10000)
-          }
-        }
-      }
-
-      // Set up listeners FIRST
-      socket.on("connect", handleConnect)
-      socket.on("disconnect", handleDisconnect)
-      socket.on("index:progress", handleIndexProgress)
-      socket.on("index:complete", handleIndexComplete)
-      socket.on("index:error", handleIndexError)
-      
-      // Then check if already connected and join
-      if (socket.connected) {
-        handleConnect()
-      }
-
-      return () => {
-        socket.off("connect", handleConnect)
-        socket.off("disconnect", handleDisconnect)
-        socket.off("index:progress", handleIndexProgress)
-        socket.off("index:complete", handleIndexComplete)
-        socket.off("index:error", handleIndexError)
-      }
-    }
-
-    let cleanup: (() => void) | undefined
-
-    if (typeof window !== "undefined") {
-      setupSocket().then((cleanupFn) => {
-        cleanup = cleanupFn
-      })
-    }
-
-    return () => {
-      cleanup?.()
-    }
-  }, [params.id])
+    },
+  })
 
   const fetchWorkspace = async () => {
     try {

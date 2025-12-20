@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getWorkspaceRole } from "@/lib/permissions"
 import { getPagesCollection } from "@/lib/db"
+import { ensureSearchIndexes } from "@/lib/search-indexes"
 import { ObjectId } from "mongodb"
 
 /**
@@ -25,6 +26,9 @@ export async function GET(
     if (!role) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
+
+    // Ensure search indexes exist (runs once per app startup)
+    await ensureSearchIndexes()
 
     // Get search query from URL params
     const { searchParams } = new URL(request.url)
