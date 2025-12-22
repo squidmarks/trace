@@ -143,12 +143,12 @@ export interface Relation {
   note?: string
 }
 
-// New: Wire connections that link to/from other pages
-export interface WireConnection {
-  label: string                    // Wire label (e.g., "LP", "LLO", "TTA")
-  wireSpec?: string                // Wire specification (e.g., "L-SSF 16 Y")
+// New: Connections that link to/from other pages (wires, hydraulic lines, mechanical linkages, etc.)
+export interface Connection {
+  label: string                    // Connection label (e.g., "LP", "LLO", "TTA", "H1", "M-LINK")
+  specification?: string           // Full specification (e.g., "L-SSF 16 Y", "3/8 hydraulic line", "3mm linkage")
   direction: "incoming" | "outgoing" | "bidirectional"
-  connectedComponent?: string      // Component this wire connects to on this page
+  connectedComponent?: string      // Component this connection links to on this page
   bbox?: BoundingBox
   confidence: number
 }
@@ -180,7 +180,7 @@ export interface PageAnalysis {
   topics: string[]
   entities: Entity[]
   relations: Relation[]
-  wireConnections?: WireConnection[]     // Labeled wires connecting to other pages
+  connections?: Connection[]             // Labeled connections linking to other pages (wires, hydraulic lines, mechanical linkages, etc.)
   referenceMarkers?: ReferenceMarker[]   // Cross-reference markers
   connectorPins?: ConnectorPin[]         // Detailed pin/terminal information
   confidence: number

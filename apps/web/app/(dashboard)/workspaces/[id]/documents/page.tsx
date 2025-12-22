@@ -109,12 +109,15 @@ export default function DocumentsPage() {
       const INDEXER_SERVICE_URL = process.env.NEXT_PUBLIC_INDEXER_URL || "http://localhost:3001"
       const INDEXER_SERVICE_TOKEN = process.env.NEXT_PUBLIC_INDEXER_TOKEN
 
-      const response = await fetch(`${INDEXER_SERVICE_URL}/jobs/${params.id}/start`, {
+      const response = await fetch(`${INDEXER_SERVICE_URL}/jobs/start`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(INDEXER_SERVICE_TOKEN && { Authorization: `Bearer ${INDEXER_SERVICE_TOKEN}` }),
         },
+        body: JSON.stringify({
+          workspaceId: params.id,
+        }),
       })
 
       if (!response.ok) {

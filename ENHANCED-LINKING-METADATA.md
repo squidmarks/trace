@@ -2,36 +2,37 @@
 
 ## Problem
 Current indexing misses critical linking information in technical diagrams, especially:
-- **Wire labels** (LP, LLO, TTA) that connect to/from other pages
+- **Connection labels** (LP, LLO, TTA, H1, P-LINE) that link to/from other pages
 - **Reference markers** (△1, △2) that explicitly point to other diagrams
-- **Connector pin assignments** with wire specifications
-- **Wire color codes** that trace circuits across multiple pages
+- **Connector pin assignments** with specifications
+- **Connection specifications** that trace systems across multiple pages (wires, hydraulic lines, mechanical linkages)
 
 ## Solution
 Three new metadata types added to `PageAnalysis`:
 
-### 1. WireConnection
-Captures labeled wires that connect to other pages/diagrams.
+### 1. Connection
+Captures labeled connections that link to other pages/diagrams (wires, hydraulic lines, mechanical linkages, etc.).
 
 ```typescript
-interface WireConnection {
-  label: string                    // Wire label (e.g., "LP", "LLO", "TTA")
-  wireSpec?: string                // Wire specification (e.g., "L-SSF 16 Y", "S-SSC 16 Y")
+interface Connection {
+  label: string                    // Connection label (e.g., "LP", "LLO", "TTA", "H1", "MECH-A")
+  specification?: string           // Full specification (e.g., "L-SSF 16 Y", "3/8 hydraulic", "5mm shaft")
   direction: "incoming" | "outgoing" | "bidirectional"
-  connectedComponent?: string      // Component this wire connects to on this page
+  connectedComponent?: string      // Component this connection links to on this page
   bbox?: BoundingBox
   confidence: number
 }
 ```
 
-**Example from Page 44:**
+**Example from Page 44 (Wiring):**
 ```json
 {
-  "wireConnections": [
+  "connections": [
     {
       "label": "LP",
       "direction": "incoming",
       "connectedComponent": "Aux Start Solenoid",
+      "specification": "L-SSF 16 Y",
       "confidence": 0.95
     },
     {
@@ -43,6 +44,21 @@ interface WireConnection {
       "label": "TTA",
       "direction": "incoming",
       "confidence": 0.95
+    }
+  ]
+}
+```
+
+**Example from Hydraulic Diagram:**
+```json
+{
+  "connections": [
+    {
+      "label": "H1",
+      "direction": "outgoing",
+      "connectedComponent": "Hydraulic Pump",
+      "specification": "3/8 pressure line",
+      "confidence": 0.9
     }
   ]
 }
@@ -123,37 +139,37 @@ interface ConnectorPin {
 
 With this enhanced metadata, the AI can:
 
-1. **Follow wire paths across pages**: "LP connects to Aux Start Solenoid on page 44, trace LP to find where it originates"
+1. **Follow connection paths across pages**: "LP connects to Aux Start Solenoid on page 44, trace LP to find where it originates"
 
 2. **Use reference markers**: "△2 on page 44 references GROUND, follow to find the grounding diagram"
 
 3. **Track connector pinouts**: "Pin 1 of J-EE carries signal L-SSF 16 Y, find all pages mentioning L-SSF"
 
-4. **Build complete circuit traces**: Chain together wire connections across multiple pages to show the full circuit path
+4. **Build complete system traces**: Chain together labeled connections across multiple pages to show the full path (electrical, hydraulic, mechanical, etc.)
 
 ## Implementation Steps
 
 ### 1. Update AI Analysis Prompt
 Add instructions to extract:
-- Wire labels at diagram edges
+- Connection labels at diagram edges (wires, hydraulic lines, mechanical linkages)
 - Reference markers (triangles, circles, etc.) with their values
-- Connector identifiers with pin numbers and wire specifications
-- Wire color codes and specifications
+- Connector identifiers with pin numbers and specifications
+- Connection specifications (wire color codes, line sizes, shaft dimensions, etc.)
 
 ### 2. Update Search/Retrieval
 The AI agent should be instructed to:
-- Use `wireConnections` to follow paths across pages
+- Use `connections` to follow paths across pages
 - Use `referenceMarkers` to find related diagrams
-- Use `connectorPins` to trace specific signals
+- Use `connectorPins` to trace specific signals/connections
 
 ### 3. Update System Prompt for Chat
 Add to the Trace Methodology:
 ```
-When analyzing wiring diagrams:
-1. Check for wireConnections - these are labeled wires that connect to other pages
+When analyzing diagrams:
+1. Check for connections - these are labeled connections that link to other pages
 2. Check for referenceMarkers - these explicitly tell you which other pages/sections to examine
-3. Check for connectorPins - these show detailed pin assignments for tracing specific signals
-4. Follow the path: if a page shows wire "LP" incoming, search other pages for "LP" outgoing
+3. Check for connectorPins - these show detailed pin/terminal assignments for tracing specific connections
+4. Follow the path: if a page shows connection "LP" incoming, search other pages for "LP" outgoing
 ```
 
 ## Example: Tracing Aux Start Solenoid Activation
@@ -161,12 +177,12 @@ When analyzing wiring diagrams:
 **Current behavior:**
 - Finds page 44 with "Aux Start Solenoid"
 - Returns information about that component
-- Misses that wire "LP" connects it to other pages
+- Misses that connection "LP" links it to other pages
 
 **Enhanced behavior:**
 1. Finds page 44 with "Aux Start Solenoid"
-2. Sees `wireConnection: { label: "LP", direction: "incoming", connectedComponent: "Aux Start Solenoid" }`
-3. Searches for pages with `wireConnection: { label: "LP", direction: "outgoing" }`
+2. Sees `connection: { label: "LP", direction: "incoming", connectedComponent: "Aux Start Solenoid" }`
+3. Searches for pages with `connectionLabels: ["LP"]` or uses filter: `connection: { label: "LP", direction: "outgoing" }`
 4. Finds the source page (e.g., page 28) where LP originates
 5. Traces the complete path from source through all intermediate pages to destination
 

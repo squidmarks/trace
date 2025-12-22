@@ -25,9 +25,9 @@ interface AIPageAnalysis {
     label?: string
     confidence: number
   }>
-  wireConnections?: Array<{
+  connections?: Array<{
     label: string
-    wireSpec?: string
+    specification?: string
     direction: "incoming" | "outgoing" | "bidirectional"
     connectedComponent?: string
     confidence: number
@@ -69,13 +69,13 @@ Return a JSON object with:
    - label: optional description
    - confidence: 0.0-1.0
 
-**FOR WIRING DIAGRAMS AND SCHEMATICS, ALSO EXTRACT:**
+**FOR DIAGRAMS AND SCHEMATICS, ALSO EXTRACT:**
 
-5. **wireConnections** (array): Labeled wires that connect to/from other pages (CRITICAL for tracing circuits)
-   - label: Wire identifier at diagram edge (e.g., "LP", "LLO", "TTA", "GND")
-   - wireSpec: Full wire specification if shown (e.g., "L-SSF 16 Y", "S-SSC 16 Y")
+5. **connections** (array): Labeled connections that link to/from other pages (CRITICAL for tracing systems)
+   - label: Connection identifier at diagram edge (e.g., "LP", "LLO", "TTA", "H1", "P-LINE", "MECH-A")
+   - specification: Full specification if shown (e.g., "L-SSF 16 Y" for wires, "3/8 hydraulic" for hydraulic lines, "5mm shaft" for mechanical)
    - direction: "incoming", "outgoing", or "bidirectional"
-   - connectedComponent: Which component on THIS page the wire connects to (if visible)
+   - connectedComponent: Which component on THIS page the connection links to (if visible)
    - confidence: 0.0-1.0
 
 6. **referenceMarkers** (array): Cross-reference symbols pointing to other pages/sections (CRITICAL for navigation)
@@ -95,11 +95,13 @@ Return a JSON object with:
    - confidence: 0.0-1.0
 
 **CRITICAL INSTRUCTIONS FOR DIAGRAMS:**
-- Look at the EDGES of wiring diagrams for wire labels (LP, LLO, TTA, etc.) - these connect to other pages!
+- Look at the EDGES of diagrams for connection labels (LP, LLO, TTA, H1, P-LINE, etc.) - these link to other pages!
 - Look for shapes with numbers/letters inside (△1, △2, ○A, etc.) - these are cross-references!
-- Look for connector boxes with pin details and wire color codes
-- Wire specifications follow patterns like: [letter]-[code] [gauge] [color] (e.g., "L-SSF 16 Y")
-- Pay special attention to labeled wires entering/leaving the diagram boundaries
+- Look for connector boxes with pin details and specifications
+- For wiring: specifications follow patterns like [letter]-[code] [gauge] [color] (e.g., "L-SSF 16 Y")
+- For hydraulic: look for line sizes and types (e.g., "3/8 pressure line", "1/2 return")
+- For mechanical: look for shaft sizes, linkage types (e.g., "5mm shaft", "cable A")
+- Pay special attention to labeled connections entering/leaving the diagram boundaries
 
 Focus on technical accuracy and extracting actionable information. For diagrams and schematics, identify components, their relationships, AND the linking information that connects this page to others.
 
@@ -170,7 +172,7 @@ export async function analyzePage(
     // Ensure arrays exist
     aiAnalysis.entities = aiAnalysis.entities || []
     aiAnalysis.relations = aiAnalysis.relations || []
-    aiAnalysis.wireConnections = aiAnalysis.wireConnections || []
+    aiAnalysis.connections = aiAnalysis.connections || []
     aiAnalysis.referenceMarkers = aiAnalysis.referenceMarkers || []
     aiAnalysis.connectorPins = aiAnalysis.connectorPins || []
 
@@ -204,13 +206,13 @@ export async function analyzePage(
     }
 
     // Add new linking metadata if present
-    if (aiAnalysis.wireConnections && aiAnalysis.wireConnections.length > 0) {
-      pageAnalysis.wireConnections = aiAnalysis.wireConnections.map((w) => ({
-        label: w.label,
-        wireSpec: w.wireSpec,
-        direction: w.direction,
-        connectedComponent: w.connectedComponent,
-        confidence: w.confidence,
+    if (aiAnalysis.connections && aiAnalysis.connections.length > 0) {
+      pageAnalysis.connections = aiAnalysis.connections.map((c) => ({
+        label: c.label,
+        specification: c.specification,
+        direction: c.direction,
+        connectedComponent: c.connectedComponent,
+        confidence: c.confidence,
       }))
     }
 
@@ -243,7 +245,7 @@ export async function analyzePage(
 
     // Build detailed logging message
     const linkingInfo = []
-    if (pageAnalysis.wireConnections?.length > 0) linkingInfo.push(`${pageAnalysis.wireConnections.length} wires`)
+    if (pageAnalysis.connections?.length > 0) linkingInfo.push(`${pageAnalysis.connections.length} connections`)
     if (pageAnalysis.referenceMarkers?.length > 0) linkingInfo.push(`${pageAnalysis.referenceMarkers.length} refs`)
     if (pageAnalysis.connectorPins?.length > 0) linkingInfo.push(`${pageAnalysis.connectorPins.length} pins`)
     const linkingSummary = linkingInfo.length > 0 ? `, ${linkingInfo.join(", ")}` : ""
