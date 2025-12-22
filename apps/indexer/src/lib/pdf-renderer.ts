@@ -73,7 +73,7 @@ export async function renderPdfToImages(
         return aNum - bNum
       })
 
-    logger.info(`📄 PDF rendered: ${imageFiles.length} pages`)
+    logger.info(`📄 PDF converted to images: ${imageFiles.length} pages (now processing...)`)
 
     const renderedPages: RenderedPage[] = []
 
@@ -82,7 +82,10 @@ export async function renderPdfToImages(
       const pageNum = i + 1
       const imagePath = join(outputDir, imageFiles[i])
 
-      logger.debug(`   Processing page ${pageNum}/${imageFiles.length}...`)
+      // Log every 10 pages to avoid spam
+      if (pageNum === 1 || pageNum === imageFiles.length || pageNum % 10 === 0) {
+        logger.info(`   📸 Converting page ${pageNum}/${imageFiles.length} to JPEG...`)
+      }
 
       // Read PNG and convert to JPEG with sharp
       const pngBuffer = await fs.readFile(imagePath)
@@ -121,19 +124,23 @@ export async function renderPdfToImages(
         height: metadata.height || 0,
       }
 
-      logger.debug(
-        `   ✅ Page ${pageNum} rendered (Full: ${Math.round(jpegBuffer.length / 1024)}KB, Thumb: ${Math.round(thumbnailBuffer.length / 1024)}KB)`
-      )
-
       // Add to array for return value
       renderedPages.push(renderedPage)
 
       // Call callback with rendered page (allows caller to save immediately)
+      // This is where the progress updates happen
       await onPageRendered?.(renderedPage, pageNum, imageFiles.length)
+      
+      // Log every 10 pages to show progress
+      if (pageNum === 1 || pageNum === imageFiles.length || pageNum % 10 === 0) {
+        logger.info(
+          `   ✅ Page ${pageNum} processed and saved (Full: ${Math.round(jpegBuffer.length / 1024)}KB, Thumb: ${Math.round(thumbnailBuffer.length / 1024)}KB)`
+        )
+      }
     }
 
     logger.info(
-      `✅ PDF render complete: ${imageFiles.length} pages, ${Math.round(
+      `✅ All pages processed and saved: ${imageFiles.length} pages, ${Math.round(
         renderedPages.reduce((sum, p) => sum + p.imageData.length, 0) / 1024
       )}KB total`
     )

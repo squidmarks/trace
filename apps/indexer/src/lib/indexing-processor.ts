@@ -310,6 +310,7 @@ export async function processIndexJob(
               documentId: doc._id,
               pageNumber: page.pageNumber,
               imageData: page.imageData,
+              thumbnailData: page.thumbnailData,
               width: page.width,
               height: page.height,
               analysis: null,
