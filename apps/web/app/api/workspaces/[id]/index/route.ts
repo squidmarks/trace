@@ -1,24 +1,14 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { ObjectId } from "mongodb"
-import { authOptions } from "@/lib/auth"
-import { getWorkspaceRole } from "@/lib/permissions"
-import { getWorkspacesCollection } from "@/lib/db"
-
-const INDEXER_SERVICE_URL =
-  process.env.INDEXER_SERVICE_URL || "http://localhost:3001"
-const INDEXER_SERVICE_TOKEN = process.env.INDEXER_SERVICE_TOKEN
-
-if (!INDEXER_SERVICE_TOKEN) {
-  throw new Error("INDEXER_SERVICE_TOKEN environment variable is required")
-}
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { getWorkspaceRole } from "@/lib/workspace-permissions"
 
 /**
  * POST /api/workspaces/:id/index
- * Start indexing job for all documents in workspace
+ * Start indexing for a workspace
  */
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -28,38 +18,27 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check permissions (owner only)
+    // Check workspace permissions (owner or admin can start indexing)
     const role = await getWorkspaceRole(params.id, session.user.id)
-    if (role !== "owner") {
+    if (!role || (role !== "owner" && role !== "admin")) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    }
+
+    // Get body (optional params)
+    const body = await request.json().catch(() => ({}))
+
+    // Call indexer service (server-to-server)
+    const INDEXER_SERVICE_URL = process.env.INDEXER_SERVICE_URL || "http://localhost:3001"
+    const INDEXER_SERVICE_TOKEN = process.env.INDEXER_SERVICE_TOKEN
+
+    if (!INDEXER_SERVICE_TOKEN) {
+      console.error("INDEXER_SERVICE_TOKEN not configured")
       return NextResponse.json(
-        { error: "Owner access required" },
-        { status: 403 }
+        { error: "Indexer service not configured" },
+        { status: 500 }
       )
     }
 
-    // Fetch workspace to get config
-    const workspaces = await getWorkspacesCollection()
-    const workspace = await workspaces.findOne({ _id: new ObjectId(params.id) })
-    
-    if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace not found" },
-        { status: 404 }
-      )
-    }
-
-    // Use workspace config or fallback to defaults
-    const config = workspace.config || {
-      indexing: {
-        renderDpi: 150,
-        renderQuality: 85,
-        analysisModel: "gpt-4o-mini",
-        analysisTemperature: 0.1,
-        analysisDetail: "auto",
-      }
-    }
-
-    // Call Indexer service
     const response = await fetch(`${INDEXER_SERVICE_URL}/jobs/start`, {
       method: "POST",
       headers: {
@@ -68,31 +47,85 @@ export async function POST(
       },
       body: JSON.stringify({
         workspaceId: params.id,
-        params: {
-          renderDpi: config.indexing.renderDpi,
-          renderQuality: config.indexing.renderQuality,
-          analysisModel: config.indexing.analysisModel,
-          analysisDetail: config.indexing.analysisDetail,
-        },
+        documentIds: body.documentIds,
+        params: body.params,
       }),
     })
 
     if (!response.ok) {
-      const error = await response.json()
+      const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
       return NextResponse.json(
-        { error: error.error || "Failed to start indexing job" },
+        { error: errorData.error || "Failed to start indexing" },
         { status: response.status }
       )
     }
 
-    const data = await response.json()
-    return NextResponse.json(data, { status: 202 })
+    const result = await response.json()
+    return NextResponse.json(result, { status: 202 })
   } catch (error: any) {
-    console.error("Error starting index job:", error)
+    console.error("Error starting indexing:", error)
     return NextResponse.json(
-      { error: "Failed to start indexing job" },
+      { error: "Failed to start indexing" },
       { status: 500 }
     )
   }
 }
 
+/**
+ * DELETE /api/workspaces/:id/index
+ * Abort indexing for a workspace
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Check authentication
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Check workspace permissions
+    const role = await getWorkspaceRole(params.id, session.user.id)
+    if (!role || (role !== "owner" && role !== "admin")) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    }
+
+    // Call indexer service
+    const INDEXER_SERVICE_URL = process.env.INDEXER_SERVICE_URL || "http://localhost:3001"
+    const INDEXER_SERVICE_TOKEN = process.env.INDEXER_SERVICE_TOKEN
+
+    if (!INDEXER_SERVICE_TOKEN) {
+      return NextResponse.json(
+        { error: "Indexer service not configured" },
+        { status: 500 }
+      )
+    }
+
+    const response = await fetch(`${INDEXER_SERVICE_URL}/jobs/${params.id}/abort`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${INDEXER_SERVICE_TOKEN}`,
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+      return NextResponse.json(
+        { error: errorData.error || "Failed to abort indexing" },
+        { status: response.status }
+      )
+    }
+
+    const result = await response.json()
+    return NextResponse.json(result)
+  } catch (error: any) {
+    console.error("Error aborting indexing:", error)
+    return NextResponse.json(
+      { error: "Failed to abort indexing" },
+      { status: 500 }
+    )
+  }
+}

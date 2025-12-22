@@ -143,6 +143,43 @@ io.on("connection", (socket) => {
     logger.socket(`👋 User left room: user=${userId}, workspace=${workspaceId}`)
   })
 
+  // Handle index start request
+  socket.on("index:start", async ({ workspaceId, documentIds, params }) => {
+    logger.socket(`📋 Index start request: workspace=${workspaceId}, user=${userId}`)
+    
+    try {
+      // Verify user has access to workspace (already verified in join, but double-check)
+      const hasAccess = await verifyWorkspaceAccess(workspaceId, userId)
+
+      if (!hasAccess) {
+        logger.warn(`🚫 Access denied for index: user=${userId}, workspace=${workspaceId}`)
+        socket.emit("error", { message: "Access denied to workspace" })
+        return
+      }
+
+      // Import startIndexingJob dynamically to avoid circular dependency
+      const { startIndexingJob } = await import("./lib/indexing-processor.js")
+      
+      // Start indexing job
+      startIndexingJob(workspaceId, io, {
+        documentIds,
+        renderDpi: params?.renderDpi,
+        renderQuality: params?.renderQuality,
+        analysisModel: params?.analysisModel,
+        analysisDetail: params?.analysisDetail,
+      }).catch((error) => {
+        logger.error(`❌ Indexing job failed for workspace ${workspaceId}:`, error)
+      })
+
+      // Confirm start
+      socket.emit("index:started", { workspaceId })
+      logger.socket(`✅ Index started: workspace=${workspaceId}`)
+    } catch (error: any) {
+      logger.error("❌ Error starting index:", error)
+      socket.emit("error", { message: error.message || "Failed to start indexing" })
+    }
+  })
+
   // Handle disconnect
   socket.on("disconnect", () => {
     logger.socket(`❌ User disconnected: ${userId} (socket: ${socket.id})`)

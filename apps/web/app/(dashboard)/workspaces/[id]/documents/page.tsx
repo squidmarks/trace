@@ -12,6 +12,7 @@ import IndexingProgress from "@/components/IndexingProgress"
 import DocumentsList from "@/components/DocumentsList"
 import WorkspaceLayout from "@/components/WorkspaceLayout"
 import { useIndexEvents } from "@/contexts/EventContext"
+import { getSocket } from "@/lib/socket"
 
 export default function DocumentsPage() {
   const params = useParams()
@@ -104,30 +105,26 @@ export default function DocumentsPage() {
     }
   }
 
-  const handleStartIndex = async () => {
+  const handleStartIndex = () => {
     try {
-      const INDEXER_SERVICE_URL = process.env.NEXT_PUBLIC_INDEXER_URL || "http://localhost:3001"
-      const INDEXER_SERVICE_TOKEN = process.env.NEXT_PUBLIC_INDEXER_TOKEN
-
-      const response = await fetch(`${INDEXER_SERVICE_URL}/jobs/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(INDEXER_SERVICE_TOKEN && { Authorization: `Bearer ${INDEXER_SERVICE_TOKEN}` }),
-        },
-        body: JSON.stringify({
-          workspaceId: params.id,
-        }),
+      const socket = getSocket()
+      
+      // Emit index start request over socket
+      socket.emit("index:start", {
+        workspaceId: params.id,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        setError(errorData.error || "Failed to start indexing")
-        return
-      }
+      // Listen for confirmation (one-time)
+      socket.once("index:started", () => {
+        console.log("Indexing started")
+        setIsIndexing(true)
+      })
 
-      console.log("Indexing started")
-      setIsIndexing(true)
+      // Listen for error (one-time)
+      socket.once("error", (error: any) => {
+        console.error("Error starting index:", error)
+        setError(error.message || "Failed to start indexing")
+      })
     } catch (error) {
       console.error("Error starting index:", error)
       setError("Failed to start indexing")
