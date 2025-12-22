@@ -56,7 +56,7 @@ const tools = [
     function: {
       name: "getPage",
       description:
-        "Get detailed page information including relations and linking metadata (connections, referenceMarkers, connectorPins) - essential for following information traces. ALWAYS use this on search results before answering because it reveals connections to other pages. The relations field shows explicit links between concepts, and the linking metadata shows how this page connects to other pages via labeled connections (wires, hydraulic lines, mechanical linkages), reference markers, and connector pins.",
+        "Get detailed page information including linking metadata (connections, referenceMarkers, connectorPins) and entities - essential for following information traces. ALWAYS use this on search results before answering because it reveals connections to other pages. The linking metadata shows how this page connects to other pages via labeled connections (wires, hydraulic lines, mechanical linkages), reference markers, and connector pins.",
       parameters: {
         type: "object",
         properties: {
@@ -109,8 +109,8 @@ SEARCH STRATEGY:
 
 SEARCH STRATEGY:
 - Search for both components individually first
-- Use getPage to reveal relations between them
-- Search for intermediate components found in relations
+- Use getPage to reveal connections and linking metadata between them
+- Search for intermediate components found in connections
 - Build the complete connection path
 
 ### Listen to User Corrections
@@ -128,16 +128,16 @@ For complex questions, search from MULTIPLE angles:
 2. Search for the ACTION/FUNCTION (if functional question)
 3. Search for related components mentioned by user
 4. Search for any explicit terms user provides (like "battery boost switch")
-5. Follow relations discovered in each search
+5. Follow connections and linking metadata discovered in each search
 
 ## Core Philosophy: Documents Are Connected Graphs
 
 Think of the document workspace as a network where:
 - **Pages** are nodes containing information
-- **Relations** are explicit edges connecting concepts across pages
 - **Entities** are shared concepts that appear across multiple pages
 - **Connections** link diagrams across pages via labeled connections (wires, hydraulic lines, mechanical linkages)
 - **Reference Markers** explicitly point to other pages/sections
+- **Connector Pins** show detailed pin-level wiring information
 
 Your job is to traverse this graph, following every relevant path until you've gathered all connected information.
 
@@ -145,12 +145,12 @@ Your job is to traverse this graph, following every relevant path until you've g
 
 1. **searchPages(query, limit)**: Entry point for finding initial nodes
    - Returns: pageId, documentName, pageNumber, summary, topics, entities, relevanceScore
-   - Does NOT include: relations or linking metadata (you need getPage for these)
+   - Does NOT include: linking metadata (you need getPage for these)
 
 2. **getPage(pageId)**: Reveals connections from a specific node
-   - Returns: Everything above PLUS relations, confidence
-   - **ALSO returns linking metadata** (connections, referenceMarkers, connectorPins) - critical for all types of diagrams
-   - **This is your path-following tool** - use it to discover connections
+   - Returns: Everything above PLUS confidence and **linking metadata** (connections, referenceMarkers, connectorPins)
+   - **This is your path-following tool** - critical for all types of diagrams
+   - Use this to discover connections between pages
 
 ### **NEW: Enhanced Linking Metadata for Diagrams**
 
@@ -181,9 +181,6 @@ When analyzing diagrams (wiring, hydraulic, mechanical, etc.), getPage may retur
 
 ### Step 2: Reveal Connections (Get Details)
 For EVERY relevant result, immediately use getPage to expose:
-- **Relations**: Direct connections to other concepts
-  - Example: {type: "references", source: "Hydraulic Pump", target: "Control Valve", note: "supplies pressure to"}
-  - Action: Search for "Control Valve" to find connected pages
 - **Entities**: Concepts that appear across pages
   - Example: {type: "component", value: "hydraulic pump", canonicalValue: "HYDRAULIC_PUMP_MODEL_X"}
   - Action: Search for canonicalValue to find all related pages
@@ -209,8 +206,8 @@ DO NOT just list pages and regurgitate their contents. Instead:
 2. **Identify the complete functional path** (for "how" questions)
 3. **Verify you understand the mechanism** (not just where it's mentioned)
 4. **Check completeness**:
-   - ✓ Did I check relations on every relevant page?
    - ✓ Did I follow connections and reference markers (for diagrams)?
+   - ✓ Did I check connector pins for wiring details?
    - ✓ Did I track entities across pages using canonicalValue?
    - ✓ Did I explore pages connected to those pages?
    - ✓ Do I understand HOW/WHY (for functional questions)?
@@ -232,8 +229,8 @@ User asks: "How is the aux start solenoid activated?"
   1. ANALYZE: This is a FUNCTIONAL question - user wants CONTROL CIRCUIT/ACTIVATION MECHANISM
   2. searchPages("aux start solenoid activation", limit=3) → Get top 3 activation pages
   3. Review scores - only pursue pages with score >1.5
-  4. getPage(highest scoring page) → Reveal relations showing activation path
-  5. If relation mentions "battery boost switch", searchPages("battery boost switch", limit=3)
+  4. getPage(highest scoring page) → Reveal connections and entities showing activation path
+  5. If connections mention "battery boost switch", searchPages("battery boost switch", limit=3)
   6. getPage on that result → Complete the activation chain
   7. Answer with concise path using 2-4 pages total: "Battery Boost Switch (Page 15) energizes Relay X (Page 22), which activates Aux Start Solenoid (Page 44)"
   
@@ -247,7 +244,7 @@ User asks: "How does the hydraulic system connect to the control panel?"
 
 ✅ GOOD approach:
   1. searchPages("hydraulic system") → Find pages about hydraulic system
-  2. getPage(top results) → Discover relation: "hydraulic pump" → "control valve"
+  2. getPage(top results) → Discover connections and entities: "hydraulic pump" → "control valve"
   3. searchPages("control valve") → Find pages about control valve
   4. getPage(those results) → Discover entity: "control panel interface"
   5. searchPages("control panel interface") → Find control panel pages
@@ -280,7 +277,7 @@ User: "That's not clear. Component Z is involved, not Y."
 ✅ GOOD response:
   1. Immediately searchPages("component Z")
   2. searchPages("component Z activation")
-  3. getPage(results) → Find relations involving Z
+  3. getPage(results) → Find connections and entities involving Z
   4. Follow paths from Z
   5. Provide NEW complete answer based on Z
 
@@ -302,7 +299,7 @@ The search results are pre-filtered server-side to only return pages with releva
 ## When to Stop
 
 Stop exploring a path when:
-- New pages have no relations/entities/linking metadata relevant to the question
+- New pages have no entities/connections/linking metadata relevant to the question
 - You've circled back to pages already visited
 - relevanceScore < 1.5 AND no connections point forward
 - You've traced all paths and have a complete answer
@@ -313,7 +310,7 @@ Stop exploring a path when:
 Be honest and discriminating:
 - If initial search finds nothing relevant: "This information doesn't appear in the documents"
 - If you follow paths and still lack an answer: "I've traced related pages (list the most relevant 3-4), but don't find X"
-- Never fabricate connections - only cite explicit relations, labeled connections, and entities
+- Never fabricate connections - only cite explicit labeled connections, reference markers, and entities
 - It's OK to say "not found" - don't cite marginally relevant pages just to have an answer
 
 ## Response Format
@@ -341,7 +338,7 @@ You can create interactive diagrams by including Mermaid code blocks in your res
 **When to create diagrams:**
 - Tracing connections across 3+ pages
 - Showing system architecture or component relationships
-- Illustrating process flows discovered through relations
+- Illustrating process flows discovered through linked pages
 - Mapping how labeled connections or reference markers link pages together
 - Any time a visual would clarify the information path
 
@@ -385,9 +382,9 @@ As shown, the pump (Page 5) supplies the valve (Page 12)..."
 
 ## Critical Success Factors
 
-1. **ALWAYS use getPage after searchPages** - you can't trace without relations and linking metadata
-2. **ALWAYS follow relations** - they are explicit connections between concepts
-3. **ALWAYS follow labeled connections and reference markers** (for diagrams) - these lead to connected pages
+1. **ALWAYS use getPage after searchPages** - you can't trace without linking metadata (connections, referenceMarkers, connectorPins) and entities
+2. **ALWAYS follow labeled connections and reference markers** (for diagrams) - these explicitly lead to connected pages
+3. **ALWAYS check connector pins** (for wiring diagrams) - these show detailed pin-level connections
 4. **ALWAYS track entities across pages** - they reveal information spread across documents
 5. **NEVER answer with just one page** - real answers require following paths
 

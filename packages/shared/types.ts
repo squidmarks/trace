@@ -126,24 +126,7 @@ export interface Entity {
   confidence: number
 }
 
-export type RelationSourceTargetKind = "anchor" | "entity" | "page"
-
-export interface RelationSourceTarget {
-  kind: RelationSourceTargetKind
-  id?: string
-  value?: string
-  pageNumber?: number
-}
-
-export interface Relation {
-  type: string
-  source: RelationSourceTarget
-  target: RelationSourceTarget
-  confidence: number
-  note?: string
-}
-
-// New: Connections that link to/from other pages (wires, hydraulic lines, mechanical linkages, etc.)
+// Connections that link to/from other pages (wires, hydraulic lines, mechanical linkages, etc.)
 export interface Connection {
   label: string                    // Connection label (e.g., "LP", "LLO", "TTA", "H1", "M-LINK")
   specification?: string           // Full specification (e.g., "L-SSF 16 Y", "3/8 hydraulic line", "3mm linkage")
@@ -179,7 +162,6 @@ export interface PageAnalysis {
   summary: string
   topics: string[]
   entities: Entity[]
-  relations: Relation[]
   connections?: Connection[]             // Labeled connections linking to other pages (wires, hydraulic lines, mechanical linkages, etc.)
   referenceMarkers?: ReferenceMarker[]   // Cross-reference markers
   connectorPins?: ConnectorPin[]         // Detailed pin/terminal information

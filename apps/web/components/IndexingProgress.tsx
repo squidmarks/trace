@@ -70,9 +70,13 @@ export default function IndexingProgress({ progress }: IndexingProgressProps) {
   }
 
   // Processing phase
+  // Progress is based on analyzedPages (AI analysis is the long/expensive part)
+  // But show some progress during rendering too
   const percentage =
     progress.analyzedPages && progress.totalPages
       ? Math.round((progress.analyzedPages / progress.totalPages) * 100)
+      : progress.processedPages && progress.totalPages
+      ? Math.min(5, Math.round((progress.processedPages / progress.totalPages) * 100)) // Cap rendering progress at 5%
       : 0
 
   return (
@@ -87,8 +91,8 @@ export default function IndexingProgress({ progress }: IndexingProgressProps) {
             <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
               <span>
                 {progress.analyzedPages && progress.analyzedPages > 0
-                  ? `${progress.analyzedPages} analyzed`
-                  : `${progress.processedPages || 0} / ${progress.totalPages || 0} processed`}
+                  ? `${progress.analyzedPages} / ${progress.totalPages || 0} analyzed`
+                  : `${progress.processedPages || 0} / ${progress.totalPages || 0} rendered`}
               </span>
               <span className="font-semibold text-blue-600 dark:text-blue-400">{percentage}%</span>
             </div>

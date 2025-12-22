@@ -268,12 +268,6 @@ router.post("/getPage", async (req: Request, res: Response) => {
           value: e.value,
           canonicalValue: e.canonicalValue,
         })) || [],
-        relations: page.analysis?.relations?.map((r: any) => ({
-          type: r.type,
-          source: r.source,
-          target: r.target,
-          note: r.note,
-        })) || [],
         confidence: page.analysis?.confidence || 0,
       },
     }

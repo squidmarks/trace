@@ -17,14 +17,6 @@ interface AIPageAnalysis {
     value?: string
     confidence: number
   }>
-  relations: Array<{
-    id: string
-    type: string
-    from: string
-    to: string
-    label?: string
-    confidence: number
-  }>
   connections?: Array<{
     label: string
     specification?: string
@@ -61,24 +53,17 @@ Return a JSON object with:
    - label: human-readable name
    - value: associated value if applicable (e.g., "12V" for a voltage spec)
    - confidence: 0.0-1.0
-4. **relations** (array): Relationships between entities
-   - id: unique identifier
-   - type: "connects-to", "part-of", "requires", "compatible-with", etc.
-   - from: entity id
-   - to: entity id
-   - label: optional description
-   - confidence: 0.0-1.0
 
 **FOR DIAGRAMS AND SCHEMATICS, ALSO EXTRACT:**
 
-5. **connections** (array): Labeled connections that link to/from other pages (CRITICAL for tracing systems)
+4. **connections** (array): Labeled connections that link to/from other pages (CRITICAL for tracing systems)
    - label: Connection identifier at diagram edge (e.g., "LP", "LLO", "TTA", "H1", "P-LINE", "MECH-A")
    - specification: Full specification if shown (e.g., "L-SSF 16 Y" for wires, "3/8 hydraulic" for hydraulic lines, "5mm shaft" for mechanical)
    - direction: "incoming", "outgoing", or "bidirectional"
    - connectedComponent: Which component on THIS page the connection links to (if visible)
    - confidence: 0.0-1.0
 
-6. **referenceMarkers** (array): Cross-reference symbols pointing to other pages/sections (CRITICAL for navigation)
+5. **referenceMarkers** (array): Cross-reference symbols pointing to other pages/sections (CRITICAL for navigation)
    - value: The marker identifier (e.g., "1", "2", "A", "B")
    - markerType: "triangle", "circle", "square", or "other"
    - description: What the marker text says (e.g., "FPP (OMIT, HPD) A16, MILE CONTROL WIRING", "GROUND")
@@ -86,7 +71,7 @@ Return a JSON object with:
    - referencedSection: Section or diagram name if stated
    - confidence: 0.0-1.0
 
-7. **connectorPins** (array): Detailed connector/terminal pin assignments
+6. **connectorPins** (array): Detailed connector/terminal pin assignments
    - connectorName: Connector identifier (e.g., "J-EE", "J-FF", "Leveling Control")
    - pinNumber: Pin number or position if shown
    - wireSpec: Wire specification for this pin (e.g., "L-SSF 16 Y")
@@ -186,22 +171,9 @@ export async function analyzePage(
         canonicalValue: e.value, // Optional specific value
         confidence: e.confidence,
       })),
-      relations: aiAnalysis.relations.map((r) => ({
-        type: r.type,
-        source: {
-          kind: "entity" as const,
-          id: r.from,
-        },
-        target: {
-          kind: "entity" as const,
-          id: r.to,
-        },
-        confidence: r.confidence,
-        note: r.label,
-      })),
       confidence: 0.85, // Overall confidence score
       modelVersion: "gpt-4o",
-      promptVersion: "v2.0", // Updated version for enhanced linking metadata
+      promptVersion: "v2.1", // Updated version: removed relations, focus on linking metadata
       analyzedAt: new Date(),
     }
 
