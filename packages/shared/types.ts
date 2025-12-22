@@ -227,6 +227,7 @@ export type MessageRole = "user" | "assistant" | "system" | "tool"
 export interface Citation {
   pageId: ObjectId         // Reference to Page._id
   documentId: ObjectId     // Reference to Document._id
+  documentName?: string    // Document filename for display
   pageNumber: number       // For display
   excerpt?: string         // Optional text excerpt that was relevant
 }
