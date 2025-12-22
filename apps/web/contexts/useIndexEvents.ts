@@ -8,8 +8,45 @@ import type {
 } from "@trace/shared"
 import { useEvents } from "./EventContext"
 
+// ============================================================================
+// Generic Workspace Event Hook
+// ============================================================================
+
+/**
+ * Generic hook for subscribing to workspace-scoped events
+ * Handles the common pattern of: subscribe → filter by workspaceId → call callback
+ */
+function useWorkspaceEvent<T extends { workspaceId: string }>(
+  eventName: string,
+  workspaceId: string,
+  callback?: (data: T) => void
+) {
+  const { subscribe } = useEvents()
+  
+  // Use ref to hold latest callback without causing re-renders
+  const callbackRef = useRef(callback)
+  useEffect(() => {
+    callbackRef.current = callback
+  }, [callback])
+
+  useEffect(() => {
+    const unsubscribe = subscribe<T>(eventName, (data) => {
+      if (data.workspaceId === workspaceId) {
+        callbackRef.current?.(data)
+      }
+    })
+
+    return unsubscribe
+  }, [eventName, workspaceId, subscribe])
+}
+
+// ============================================================================
+// Index-Specific Hooks
+// ============================================================================
+
 /**
  * Subscribe to index progress events for a specific workspace
+ * This is the only hook that returns state and handles workspace join/leave
  */
 export function useIndexProgress(
   workspaceId: string,
@@ -27,44 +64,31 @@ export function useIndexProgress(
 
   // Subscribe to events
   useEffect(() => {
-    console.log(`[useIndexProgress] Setting up event subscription for workspace: ${workspaceId}`)
-    
     const unsubscribe = subscribe<IndexProgressEvent>("index:progress", (data) => {
-      console.log(`[useIndexProgress] Received progress event:`, data)
       if (data.workspaceId === workspaceId) {
-        console.log(`[useIndexProgress] Workspace matches, updating state`)
         setProgress(data)
         onProgressRef.current?.(data)
-      } else {
-        console.log(`[useIndexProgress] Workspace doesn't match: ${data.workspaceId} !== ${workspaceId}`)
       }
     })
 
-    return () => {
-      console.log(`[useIndexProgress] Cleaning up event subscription`)
-      unsubscribe()
-    }
+    return unsubscribe
   }, [workspaceId, subscribe])
 
   // Join/leave workspace (separate effect to handle connection state)
   useEffect(() => {
     if (!isConnected) {
-      console.log(`[useIndexProgress] Waiting for connection before joining ${workspaceId}`)
       hasJoinedRef.current = false
       return
     }
 
     if (hasJoinedRef.current) {
-      console.log(`[useIndexProgress] Already joined ${workspaceId}, skipping`)
       return
     }
 
-    console.log(`[useIndexProgress] Connected! Joining workspace: ${workspaceId}`)
     hasJoinedRef.current = true
     joinWorkspace(workspaceId)
 
     return () => {
-      console.log(`[useIndexProgress] Leaving workspace: ${workspaceId}`)
       hasJoinedRef.current = false
       leaveWorkspace(workspaceId)
     }
@@ -80,23 +104,7 @@ export function useIndexComplete(
   workspaceId: string,
   onComplete?: (data: IndexCompleteEvent) => void
 ) {
-  const { subscribe } = useEvents()
-  
-  // Use ref to hold latest callback without causing re-renders
-  const onCompleteRef = useRef(onComplete)
-  useEffect(() => {
-    onCompleteRef.current = onComplete
-  }, [onComplete])
-
-  useEffect(() => {
-    const unsubscribe = subscribe<IndexCompleteEvent>("index:complete", (data) => {
-      if (data.workspaceId === workspaceId) {
-        onCompleteRef.current?.(data)
-      }
-    })
-
-    return unsubscribe
-  }, [workspaceId, subscribe])
+  useWorkspaceEvent("index:complete", workspaceId, onComplete)
 }
 
 /**
@@ -106,23 +114,7 @@ export function useIndexError(
   workspaceId: string,
   onError?: (data: IndexErrorEvent) => void
 ) {
-  const { subscribe } = useEvents()
-  
-  // Use ref to hold latest callback without causing re-renders
-  const onErrorRef = useRef(onError)
-  useEffect(() => {
-    onErrorRef.current = onError
-  }, [onError])
-
-  useEffect(() => {
-    const unsubscribe = subscribe<IndexErrorEvent>("index:error", (data) => {
-      if (data.workspaceId === workspaceId) {
-        onErrorRef.current?.(data)
-      }
-    })
-
-    return unsubscribe
-  }, [workspaceId, subscribe])
+  useWorkspaceEvent("index:error", workspaceId, onError)
 }
 
 /**
@@ -132,23 +124,7 @@ export function useIndexCancelled(
   workspaceId: string,
   onCancelled?: (data: { workspaceId: string }) => void
 ) {
-  const { subscribe } = useEvents()
-  
-  // Use ref to hold latest callback without causing re-renders
-  const onCancelledRef = useRef(onCancelled)
-  useEffect(() => {
-    onCancelledRef.current = onCancelled
-  }, [onCancelled])
-
-  useEffect(() => {
-    const unsubscribe = subscribe<{ workspaceId: string }>("index:cancelled", (data) => {
-      if (data.workspaceId === workspaceId) {
-        onCancelledRef.current?.(data)
-      }
-    })
-
-    return unsubscribe
-  }, [workspaceId, subscribe])
+  useWorkspaceEvent("index:cancelled", workspaceId, onCancelled)
 }
 
 /**
