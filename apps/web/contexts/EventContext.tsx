@@ -17,6 +17,7 @@ import type {
 interface EventContextValue {
   isConnected: boolean
   subscribe: <T = any>(eventName: string, handler: (data: T) => void) => () => void
+  emit: (eventName: string, data?: any) => void
   joinWorkspace: (workspaceId: string) => void
   leaveWorkspace: (workspaceId: string) => void
 }
@@ -77,6 +78,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     const eventNames: (keyof ServerToClientEvents)[] = [
       "workspace:joined",
       "workspace:left", 
+      "index:started",
       "index:progress",
       "index:complete",
       "index:error",
@@ -137,6 +139,17 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Emit an event
+  const emit = useCallback((eventName: string, data?: any) => {
+    if (!socketRef.current?.connected) {
+      console.warn(`[Events] Cannot emit ${eventName} - socket not connected`)
+      return
+    }
+    
+    console.log(`[Events] Emitting: ${eventName}`, data)
+    socketRef.current.emit(eventName as any, data)
+  }, [])
+
   // Join a workspace room
   const joinWorkspace = useCallback((workspaceId: string) => {
     // Store current workspace for auto-rejoin on reconnect
@@ -170,6 +183,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
   const value: EventContextValue = {
     isConnected,
     subscribe,
+    emit,
     joinWorkspace,
     leaveWorkspace,
   }

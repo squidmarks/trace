@@ -11,12 +11,12 @@ import ConfirmButton from "@/components/ConfirmButton"
 import IndexingProgress from "@/components/IndexingProgress"
 import DocumentsList from "@/components/DocumentsList"
 import WorkspaceLayout from "@/components/WorkspaceLayout"
-import { useIndexEvents } from "@/contexts/EventContext"
-import { getSocket } from "@/lib/socket"
+import { useIndexEvents, useEvents } from "@/contexts/EventContext"
 
 export default function DocumentsPage() {
   const params = useParams()
   const router = useRouter()
+  const events = useEvents()
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [role, setRole] = useState<Role | null>(null)
   const [documents, setDocuments] = useState<TraceDocument[]>([])
@@ -107,24 +107,15 @@ export default function DocumentsPage() {
 
   const handleStartIndex = () => {
     try {
-      const socket = getSocket()
+      console.log("Starting index for workspace:", params.id)
       
       // Emit index start request over socket
-      socket.emit("index:start", {
+      events.emit("index:start", {
         workspaceId: params.id,
       })
 
-      // Listen for confirmation (one-time)
-      socket.once("index:started", () => {
-        console.log("Indexing started")
-        setIsIndexing(true)
-      })
-
-      // Listen for error (one-time)
-      socket.once("error", (error: any) => {
-        console.error("Error starting index:", error)
-        setError(error.message || "Failed to start indexing")
-      })
+      // The index:started event will be received via the regular event flow
+      // Progress updates will come through useIndexEvents
     } catch (error) {
       console.error("Error starting index:", error)
       setError("Failed to start indexing")
