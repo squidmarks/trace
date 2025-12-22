@@ -82,6 +82,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
       "index:progress",
       "index:complete",
       "index:error",
+      "index:cancelled",
       "error"
     ]
 
@@ -324,8 +325,34 @@ export function useIndexError(
 }
 
 /**
+ * Subscribe to index cancelled events for a specific workspace
+ */
+export function useIndexCancelled(
+  workspaceId: string,
+  onCancelled?: (data: { workspaceId: string }) => void
+) {
+  const { subscribe } = useEvents()
+  
+  // Use ref to hold latest callback without causing re-renders
+  const onCancelledRef = useRef(onCancelled)
+  useEffect(() => {
+    onCancelledRef.current = onCancelled
+  }, [onCancelled])
+
+  useEffect(() => {
+    const unsubscribe = subscribe<{ workspaceId: string }>("index:cancelled", (data) => {
+      if (data.workspaceId === workspaceId) {
+        onCancelledRef.current?.(data)
+      }
+    })
+
+    return unsubscribe
+  }, [workspaceId, subscribe])
+}
+
+/**
  * Subscribe to all index events for a workspace
- * Returns current progress state and provides callbacks for complete/error
+ * Returns current progress state and provides callbacks for complete/error/cancelled
  */
 export function useIndexEvents(
   workspaceId: string,
@@ -333,11 +360,13 @@ export function useIndexEvents(
     onProgress?: (data: IndexProgressEvent) => void
     onComplete?: (data: IndexCompleteEvent) => void
     onError?: (data: IndexErrorEvent) => void
+    onCancelled?: (data: { workspaceId: string }) => void
   }
 ) {
   const progress = useIndexProgress(workspaceId, callbacks?.onProgress)
   useIndexComplete(workspaceId, callbacks?.onComplete)
   useIndexError(workspaceId, callbacks?.onError)
+  useIndexCancelled(workspaceId, callbacks?.onCancelled)
 
   return { progress }
 }

@@ -79,6 +79,20 @@ export interface IndexCompleteEvent {
 }
 
 /**
+ * Indexing job started
+ */
+export interface IndexStartedEvent {
+  workspaceId: string
+}
+
+/**
+ * Indexing job cancelled
+ */
+export interface IndexCancelledEvent {
+  workspaceId: string
+}
+
+/**
  * Indexing failed
  */
 export interface IndexErrorEvent {
@@ -112,8 +126,10 @@ export const ClientEvents = {
 export const ServerEvents = {
   WORKSPACE_JOINED: "workspace:joined",
   WORKSPACE_LEFT: "workspace:left",
+  INDEX_STARTED: "index:started",
   INDEX_PROGRESS: "index:progress",
   INDEX_COMPLETE: "index:complete",
+  INDEX_CANCELLED: "index:cancelled",
   INDEX_ERROR: "index:error",
   ERROR: "error",
   CONNECT: "connect",
@@ -131,8 +147,10 @@ export const ServerEvents = {
 export interface ServerToClientEvents {
   [ServerEvents.WORKSPACE_JOINED]: (data: WorkspaceJoinedEvent) => void
   [ServerEvents.WORKSPACE_LEFT]: (data: WorkspaceLeftEvent) => void
+  [ServerEvents.INDEX_STARTED]: (data: IndexStartedEvent) => void
   [ServerEvents.INDEX_PROGRESS]: (data: IndexProgressEvent) => void
   [ServerEvents.INDEX_COMPLETE]: (data: IndexCompleteEvent) => void
+  [ServerEvents.INDEX_CANCELLED]: (data: IndexCancelledEvent) => void
   [ServerEvents.INDEX_ERROR]: (data: IndexErrorEvent) => void
   [ServerEvents.ERROR]: (data: ErrorEvent) => void
 }

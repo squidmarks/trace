@@ -55,6 +55,12 @@ export default function DocumentsPage() {
         setTimeout(() => setIndexProgress(null), 10000)
       }
     },
+    onCancelled: () => {
+      console.log("Indexing cancelled")
+      setIsIndexing(false)
+      setIndexProgress(null)
+      fetchDocuments()
+    },
   })
 
   const fetchWorkspace = async () => {
@@ -124,27 +130,12 @@ export default function DocumentsPage() {
 
   const handleAbortIndex = async () => {
     try {
-      const INDEXER_SERVICE_URL = process.env.NEXT_PUBLIC_INDEXER_URL || "http://localhost:3001"
-      const INDEXER_SERVICE_TOKEN = process.env.NEXT_PUBLIC_INDEXER_TOKEN
-
-      const response = await fetch(`${INDEXER_SERVICE_URL}/jobs/${params.id}/abort`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(INDEXER_SERVICE_TOKEN && { Authorization: `Bearer ${INDEXER_SERVICE_TOKEN}` }),
-        },
+      // Use socket to abort indexing
+      events.emit("index:abort", {
+        workspaceId: params.id,
       })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        setError(errorData.error || "Failed to abort indexing")
-        return
-      }
-
-      console.log("Indexing aborted successfully")
-      setIsIndexing(false)
-      setIndexProgress(null)
-      fetchDocuments()
+      
+      console.log("Abort request sent")
     } catch (error) {
       console.error("Error aborting index:", error)
       setError("Failed to abort indexing")

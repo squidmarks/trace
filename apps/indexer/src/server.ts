@@ -180,6 +180,33 @@ io.on("connection", (socket) => {
     }
   })
 
+  // Handle index abort request
+  socket.on("index:abort", async ({ workspaceId }) => {
+    logger.socket(`🛑 Index abort request: workspace=${workspaceId}, user=${userId}`)
+    
+    try {
+      // Verify user has access to workspace
+      const hasAccess = await verifyWorkspaceAccess(workspaceId, userId)
+
+      if (!hasAccess) {
+        logger.warn(`🚫 Access denied for abort: user=${userId}, workspace=${workspaceId}`)
+        socket.emit("error", { message: "Access denied to workspace" })
+        return
+      }
+
+      // Import abortIndexingJob dynamically to avoid circular dependency
+      const { abortIndexingJob } = await import("./lib/indexing-processor.js")
+      
+      // Abort indexing job
+      await abortIndexingJob(workspaceId, io)
+
+      logger.socket(`✅ Index aborted: workspace=${workspaceId}`)
+    } catch (error: any) {
+      logger.error("❌ Error aborting index:", error)
+      socket.emit("error", { message: error.message || "Failed to abort indexing" })
+    }
+  })
+
   // Handle disconnect
   socket.on("disconnect", () => {
     logger.socket(`❌ User disconnected: ${userId} (socket: ${socket.id})`)

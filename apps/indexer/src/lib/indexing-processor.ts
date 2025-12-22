@@ -332,14 +332,19 @@ export async function processIndexJob(
               }
             )
             
-            // Calculate ETA for rendering
-            const elapsed = Date.now() - renderStartTime
-            const avgTimePerPage = elapsed / current
-            const remainingPages = total - current
-            const etaSeconds = Math.round((avgTimePerPage * remainingPages) / 1000)
-            
             // Fetch fresh job state for accurate progress
             const freshJob = await indexJobs.findOne({ _id: job._id })
+            
+            // Calculate simple ETA based on overall job progress
+            const jobElapsed = Date.now() - job.startedAt.getTime()
+            const analyzedSoFar = freshJob?.progress.analyzedPages || 0
+            const totalToAnalyze = freshJob?.progress.totalPages || total
+            let etaSeconds: number | undefined
+            if (analyzedSoFar > 0) {
+              const avgTimePerAnalyzedPage = jobElapsed / analyzedSoFar
+              const remainingToAnalyze = totalToAnalyze - analyzedSoFar
+              etaSeconds = Math.round((avgTimePerAnalyzedPage * remainingToAnalyze) / 1000)
+            }
             
             // Emit progress after each page
             io.to(`workspace:${workspaceId}`).emit("index:progress", {
@@ -357,7 +362,7 @@ export async function processIndexJob(
               processedPages: freshJob?.progress.processedPages || 0,
               analyzedPages: freshJob?.progress.analyzedPages || 0,
               message: `Parsing document... (${current}/${total} pages)`,
-              etaSeconds: etaSeconds > 0 ? etaSeconds : undefined,
+              etaSeconds: etaSeconds && etaSeconds > 0 ? etaSeconds : undefined,
             })
           }
           )
@@ -426,15 +431,20 @@ export async function processIndexJob(
 
           logger.info(`   🤖 Analyzing page ${pageNum}/${allPages.length} (image: ${imageSizeKB}KB)`)
 
-          // Calculate ETA for analysis
-          const analysisElapsed = Date.now() - analysisStartTime
-          const pagesAnalyzedSoFar = i + 1
-          const avgTimePerPage = analysisElapsed / pagesAnalyzedSoFar
-          const remainingPagesToAnalyze = pagesToAnalyze.length - pagesAnalyzedSoFar
-          const analysisEtaSeconds = Math.round((avgTimePerPage * remainingPagesToAnalyze) / 1000)
-
           // Emit progress BEFORE starting analysis (so user sees immediate update)
           const preAnalysisJob = await indexJobs.findOne({ _id: job._id })
+          
+          // Calculate simple ETA based on overall job progress
+          const jobElapsed = Date.now() - job.startedAt.getTime()
+          const analyzedSoFar = preAnalysisJob?.progress.analyzedPages || 0
+          const totalToAnalyze = preAnalysisJob?.progress.totalPages || allPages.length
+          let etaSeconds: number | undefined
+          if (analyzedSoFar > 0) {
+            const avgTimePerAnalyzedPage = jobElapsed / analyzedSoFar
+            const remainingToAnalyze = totalToAnalyze - analyzedSoFar
+            etaSeconds = Math.round((avgTimePerAnalyzedPage * remainingToAnalyze) / 1000)
+          }
+          
           io.to(`workspace:${workspaceId}`).emit("index:progress", {
             workspaceId,
             phase: "processing",
@@ -450,7 +460,7 @@ export async function processIndexJob(
             processedPages: preAnalysisJob?.progress.processedPages || job.progress.processedPages,
             analyzedPages: preAnalysisJob?.progress.analyzedPages || job.progress.analyzedPages,
             message: `Analyzing document... (${preAnalysisJob?.progress.analyzedPages || 0}/${allPages.length} pages)`,
-            etaSeconds: i > 0 && analysisEtaSeconds > 0 ? analysisEtaSeconds : undefined,
+            etaSeconds: etaSeconds && etaSeconds > 0 ? etaSeconds : undefined,
           })
 
           // Analyze page
@@ -502,12 +512,16 @@ export async function processIndexJob(
 
             logger.info(`   ✅ Page ${pageNum} analyzed ($${cost.toFixed(4)}) | AI: ${(analysisTime/1000).toFixed(1)}s, DB: ${dbTime}ms, Job: ${jobTime}ms, Total: ${(totalTime/1000).toFixed(1)}s`)
 
-            // Recalculate ETA after this page completes
-            const analysisElapsedAfter = Date.now() - analysisStartTime
-            const pagesAnalyzedNow = i + 1
-            const avgTimePerPageAfter = analysisElapsedAfter / pagesAnalyzedNow
-            const remainingPagesAfter = pagesToAnalyze.length - pagesAnalyzedNow
-            const analysisEtaSecondsAfter = Math.round((avgTimePerPageAfter * remainingPagesAfter) / 1000)
+            // Calculate simple ETA based on overall job progress
+            const jobElapsed = Date.now() - job.startedAt.getTime()
+            const analyzedSoFar = updatedJob?.progress.analyzedPages || 0
+            const totalToAnalyze = updatedJob?.progress.totalPages || allPages.length
+            let etaSecondsAfter: number | undefined
+            if (analyzedSoFar > 0) {
+              const avgTimePerAnalyzedPage = jobElapsed / analyzedSoFar
+              const remainingToAnalyze = totalToAnalyze - analyzedSoFar
+              etaSecondsAfter = Math.round((avgTimePerAnalyzedPage * remainingToAnalyze) / 1000)
+            }
 
             // Emit progress with updated values
             io.to(`workspace:${workspaceId}`).emit("index:progress", {
@@ -525,7 +539,7 @@ export async function processIndexJob(
               processedPages: updatedJob?.progress.processedPages || job.progress.processedPages,
               analyzedPages: updatedJob?.progress.analyzedPages || job.progress.analyzedPages,
               message: `Analyzing document... (${updatedJob?.progress.analyzedPages || 0}/${allPages.length} pages)`,
-              etaSeconds: analysisEtaSecondsAfter > 0 ? analysisEtaSecondsAfter : undefined,
+              etaSeconds: etaSecondsAfter && etaSecondsAfter > 0 ? etaSecondsAfter : undefined,
             })
 
           } catch (error) {
@@ -671,5 +685,45 @@ export async function startIndexingJob(
   // Start processing asynchronously
   processIndexJob(jobId, io).catch((error) => {
     logger.error(`Failed to process job ${jobId}: ${error.message}`)
+  })
+}
+
+/**
+ * Abort an in-progress indexing job
+ */
+export async function abortIndexingJob(
+  workspaceId: string,
+  io: Server
+): Promise<void> {
+  const indexJobs = await getIndexJobsCollection()
+  
+  // Find active job for this workspace
+  const activeJob = await indexJobs.findOne({
+    workspaceId: new ObjectId(workspaceId),
+    status: "in-progress"
+  })
+  
+  if (!activeJob) {
+    logger.warn(`⚠️  No active job to abort for workspace: ${workspaceId}`)
+    return
+  }
+  
+  // Mark job as cancelled
+  await indexJobs.updateOne(
+    { _id: activeJob._id },
+    {
+      $set: {
+        status: "cancelled",
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      }
+    }
+  )
+  
+  logger.info(`🛑 Cancelled indexing job: ${activeJob._id} for workspace: ${workspaceId}`)
+  
+  // Emit cancellation event to all clients in workspace room
+  io.to(`workspace:${workspaceId}`).emit("index:cancelled", {
+    workspaceId,
   })
 }
