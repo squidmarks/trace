@@ -119,6 +119,14 @@ export async function POST(
       }
     )
 
+    // Generate title in background if this is the first message
+    if (chatSession.messages.length === 0 && !chatSession.title) {
+      // Don't await - let it run in background
+      generateSessionTitle(params.sessionId, userMessage.content, fullContent).catch((err) =>
+        console.error("Error generating session title:", err)
+      )
+    }
+
     return NextResponse.json({
       message: {
         ...assistantMessage,
@@ -196,6 +204,63 @@ export async function GET(
       { error: "Failed to get messages" },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * Generate a title for a chat session using AI
+ */
+async function generateSessionTitle(
+  sessionId: string,
+  userMessage: string,
+  assistantResponse: string
+): Promise<void> {
+  const OpenAI = (await import("openai")).default
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Generate a short, descriptive title (max 50 characters) for this conversation. Only respond with the title, no quotes or punctuation at the end.",
+        },
+        {
+          role: "user",
+          content: userMessage,
+        },
+        {
+          role: "assistant",
+          content: assistantResponse,
+        },
+      ],
+      max_tokens: 20,
+      temperature: 0.7,
+    })
+
+    const title = response.choices[0]?.message?.content?.trim()
+    if (title) {
+      // Update session with generated title
+      const chatSessions = await getChatSessionsCollection()
+      await chatSessions.updateOne(
+        { _id: new ObjectId(sessionId) },
+        {
+          $set: {
+            title,
+            updatedAt: new Date(),
+          },
+        }
+      )
+      
+      console.log(`[Chat] Generated title for session ${sessionId}: "${title}"`)
+    }
+  } catch (error) {
+    console.error("Error generating session title:", error)
+    throw error
   }
 }
 

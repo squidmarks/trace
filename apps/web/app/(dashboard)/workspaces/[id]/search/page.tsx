@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
-import { Search, FileText, Loader2, AlertCircle, MessageSquare } from "lucide-react"
+import { Search, FileText, Loader2, AlertCircle } from "lucide-react"
+import WorkspaceLayout from "@/components/WorkspaceLayout"
 
 interface SearchResult {
   _id: string
@@ -89,25 +90,16 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Back Link */}
-        <div className="mb-8">
-          <Link
-            href="/workspaces"
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            ← Back to Workspaces
-          </Link>
-        </div>
-
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Search Workspace</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Search across all indexed pages using semantic analysis
-          </p>
-        </div>
+    <WorkspaceLayout>
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold mb-2">Search Workspace</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Search across all indexed pages using semantic analysis
+            </p>
+          </div>
 
         {/* Tab Navigation */}
         <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
@@ -128,15 +120,6 @@ export default function SearchPage() {
               <div className="flex items-center gap-2">
                 <Search size={18} />
                 Search
-              </div>
-            </Link>
-            <Link
-              href={`/workspaces/${params.id}/chat`}
-              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-            >
-              <div className="flex items-center gap-2">
-                <MessageSquare size={18} />
-                Chat
               </div>
             </Link>
           </nav>
@@ -348,8 +331,9 @@ export default function SearchPage() {
           </div>
         </div>
       )}
+        </div>
       </div>
-    </div>
+    </WorkspaceLayout>
   )
 }
 

@@ -68,6 +68,65 @@ export async function GET(
 }
 
 /**
+ * PATCH /api/workspaces/:id/chat/:sessionId
+ * Update a chat session (title)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string; sessionId: string } }
+) {
+  try {
+    // Check authentication
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Check workspace permissions
+    const role = await getWorkspaceRole(params.id, session.user.id)
+    if (!role) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    }
+
+    // Parse request body
+    const body = await request.json()
+    const { title } = body
+
+    if (!title || typeof title !== "string") {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
+
+    // Update session
+    const chatSessions = await getChatSessionsCollection()
+    const result = await chatSessions.updateOne(
+      {
+        _id: new ObjectId(params.sessionId),
+        workspaceId: new ObjectId(params.id),
+        userId: new ObjectId(session.user.id),
+      },
+      {
+        $set: {
+          title: title.trim(),
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error("Error updating chat session:", error)
+    return NextResponse.json(
+      { error: "Failed to update chat session" },
+      { status: 500 }
+    )
+  }
+}
+
+/**
  * DELETE /api/workspaces/:id/chat/:sessionId
  * Delete a chat session
  */

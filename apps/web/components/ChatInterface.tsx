@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Loader2, FileText, X } from "lucide-react"
+import { Send, Loader2, FileText, X, MessageSquare } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import type { ChatMessage, Citation } from "@trace/shared"
+import MermaidDiagram from "./MermaidDiagram"
 
 interface PageData {
   imageData: string
@@ -19,21 +20,31 @@ interface ChatInterfaceProps {
   workspaceId: string
   sessionId: string | null
   onSessionCreated?: (sessionId: string) => void
+  onMessageSent?: () => void
 }
 
-export default function ChatInterface({ workspaceId, sessionId, onSessionCreated }: ChatInterfaceProps) {
+export default function ChatInterface({ workspaceId, sessionId, onSessionCreated, onMessageSent }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId)
   const [selectedPage, setSelectedPage] = useState<PageData | null>(null)
   const [isLoadingPage, setIsLoadingPage] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // Sync sessionId prop with state
+  useEffect(() => {
+    setCurrentSessionId(sessionId)
+    setMessages([]) // Clear messages when switching sessions
+  }, [sessionId])
+
   // Load messages when session changes
   useEffect(() => {
     if (currentSessionId) {
       loadMessages()
+    } else {
+      setMessages([]) // Clear messages for new chat
     }
   }, [currentSessionId])
 
@@ -45,16 +56,19 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
   const loadMessages = async () => {
     if (!currentSessionId) return
 
+    setIsLoadingMessages(true)
     try {
       const response = await fetch(
-        `/api/workspaces/${workspaceId}/chat/${currentSessionId}/messages`
+        `/api/workspaces/${workspaceId}/chat/${currentSessionId}`
       )
       if (response.ok) {
         const data = await response.json()
-        setMessages(data.messages || [])
+        setMessages(data.session?.messages || [])
       }
     } catch (error) {
       console.error("Error loading messages:", error)
+    } finally {
+      setIsLoadingMessages(false)
     }
   }
 
@@ -116,6 +130,14 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
       if (response.ok) {
         const data = await response.json()
         setMessages((prev) => [...prev, data.message])
+        
+        // Notify parent that message was sent (for session list refresh)
+        onMessageSent?.()
+        
+        // Poll for title update after a short delay (AI is generating it in background)
+        setTimeout(() => {
+          onMessageSent?.()
+        }, 3000)
       } else {
         throw new Error("Failed to send message")
       }
@@ -155,14 +177,38 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
     <div className="flex flex-col h-[calc(100vh-12rem)] bg-white rounded-lg border">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center text-gray-400 mt-8">
-            <p className="text-lg">Start a conversation</p>
-            <p className="text-sm mt-2">Ask questions about your documents</p>
+        {isLoadingMessages ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
+                <div className={`h-20 rounded-lg animate-pulse ${
+                  i % 2 === 0 ? "w-2/3 bg-blue-100" : "w-3/4 bg-gray-100"
+                }`} />
+              </div>
+            ))}
           </div>
-        )}
-
-        {messages.map((message, idx) => (
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <div className="max-w-md">
+              <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Start a conversation
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Ask questions about your documents and I'll search through them to find answers.
+              </p>
+              <div className="text-left space-y-2">
+                <p className="text-xs text-gray-400">Try asking:</p>
+                <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
+                  <li>"What are the main topics in these documents?"</li>
+                  <li>"Find information about [specific topic]"</li>
+                  <li>"Summarize the key findings"</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        ) : (
+          messages.map((message, idx) => (
           <div
             key={idx}
             className={`flex ${
@@ -181,7 +227,33 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
                   ? "prose-invert" 
                   : "prose-gray"
               }`}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ node, inline, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || "")
+                      const language = match ? match[1] : ""
+                      const code = String(children).replace(/\n$/, "")
+                      
+                      // Render Mermaid diagrams
+                      if (!inline && language === "mermaid") {
+                        return <MermaidDiagram chart={code} />
+                      }
+                      
+                      // Regular code blocks
+                      if (!inline) {
+                        return (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        )
+                      }
+                      
+                      // Inline code
+                      return <code className={className} {...props}>{children}</code>
+                    }
+                  }}
+                >
                   {message.content}
                 </ReactMarkdown>
               </div>
@@ -217,7 +289,8 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
               )}
             </div>
           </div>
-        ))}
+          ))
+        )}
 
         {isLoading && (
           <div className="flex justify-start">

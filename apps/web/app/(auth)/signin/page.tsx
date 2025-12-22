@@ -1,19 +1,47 @@
 "use client"
 
-import { signIn } from "next-auth/react"
-import { useState } from "react"
+import { signIn, useSession } from "next-auth/react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function SignIn() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+
+  // Redirect to home if already authenticated
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/")
+    }
+  }, [status, router])
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
     try {
-      await signIn("google", { callbackUrl: "/workspaces" })
+      await signIn("google", { callbackUrl: "/" })
     } catch (error) {
       console.error("Sign in error:", error)
       setIsLoading(false)
     }
+  }
+
+  // Show loading while checking auth status
+  if (status === "loading") {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-gray-500">Loading...</div>
+      </main>
+    )
+  }
+
+  // Don't show sign-in form if already authenticated (will redirect)
+  if (status === "authenticated") {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-gray-500">Redirecting...</div>
+      </main>
+    )
   }
 
   return (
