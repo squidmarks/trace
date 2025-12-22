@@ -118,6 +118,12 @@ export async function processIndexJob(
     // Reset progress counters ONLY for fresh start (not resume)
     if (!isResume) {
       logger.info(`🔄 Resetting progress counters for fresh start`)
+      
+      // Delete ALL pages for this workspace to ensure clean state
+      // This prevents stale pages from remaining if indexing is aborted partway through
+      const deleteResult = await pages.deleteMany({ workspaceId: job.workspaceId })
+      logger.info(`🧹 Deleted ${deleteResult.deletedCount} existing pages for fresh re-index`)
+      
       await indexJobs.updateOne(
         { _id: job._id },
         { 
@@ -181,18 +187,14 @@ export async function processIndexJob(
         message: "Starting document processing...",
       })
 
-      // Check existing pages
-      const existingPages = await pages.find({ documentId: doc._id }).toArray()
+      // Check existing pages (for resume mode only, fresh start already deleted all pages)
+      const existingPages = isResume 
+        ? await pages.find({ documentId: doc._id }).toArray()
+        : []
       const existingPageCount = existingPages.length
       const analyzedPagesCount = existingPages.filter(p => p.analysis !== null).length
       
-      // For fresh start: delete all existing pages
-      // For resume: keep existing pages and skip re-rendering
-      if (!isResume && existingPageCount > 0) {
-        logger.info(`🧹 Deleting ${existingPageCount} existing pages for fresh re-index: ${filename}`)
-        await pages.deleteMany({ documentId: doc._id })
-        existingPages.length = 0 // Clear array
-      } else if (isResume && existingPageCount > 0) {
+      if (isResume && existingPageCount > 0) {
         logger.info(`🔄 Resuming document: ${filename} (${existingPageCount} pages exist, ${analyzedPagesCount} analyzed)`)
       }
 
@@ -290,13 +292,15 @@ export async function processIndexJob(
             quality: job.renderQuality,
           },
           async (page, current, total) => {
-            // First callback: set total pages
+            // First callback: increment total pages for this document
             if (current === 1) {
               await indexJobs.updateOne(
                 { _id: job._id },
                 { 
-                  $set: { 
-                    "progress.totalPages": total,
+                  $inc: { 
+                    "progress.totalPages": total
+                  },
+                  $set: {
                     updatedAt: new Date()
                   }
                 }
@@ -406,8 +410,8 @@ export async function processIndexJob(
           },
           totalDocuments: docsToProcess.length,
           processedDocuments: currentJobBeforeAnalysis?.progress.processedDocuments || job.progress.processedDocuments,
-          totalPages: allPages.length,
-          processedPages: currentJobBeforeAnalysis?.progress.processedPages || allPages.length,
+          totalPages: currentJobBeforeAnalysis?.progress.totalPages || 0,
+          processedPages: currentJobBeforeAnalysis?.progress.processedPages || 0,
           analyzedPages: currentJobBeforeAnalysis?.progress.analyzedPages || 0,
           message: "Preparing for document analysis...",
         })

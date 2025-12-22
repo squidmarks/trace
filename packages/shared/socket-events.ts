@@ -58,12 +58,15 @@ export interface IndexProgressEvent {
     filename: string
     current: number
     total: number
+    totalPages: number        // Total pages in THIS document
+    processedPages: number    // Pages rendered for THIS document
+    analyzedPages: number     // Pages analyzed for THIS document
   }
   totalDocuments: number
   processedDocuments: number
-  totalPages: number
-  processedPages: number
-  analyzedPages: number
+  totalPages: number          // Overall total pages (all documents)
+  processedPages: number      // Overall pages rendered (all documents)
+  analyzedPages: number       // Overall pages analyzed (all documents)
   message?: string
   etaSeconds?: number
 }

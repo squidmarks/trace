@@ -70,13 +70,13 @@ export default function IndexingProgress({ progress }: IndexingProgressProps) {
   }
 
   // Processing phase
-  // Progress is based on analyzedPages (AI analysis is the long/expensive part)
-  // But show some progress during rendering too
+  // Two phases: rendering (fast) and analysis (slow)
+  // Show actual progress for whichever phase is active
   const percentage =
-    progress.analyzedPages && progress.totalPages
+    progress.analyzedPages && progress.totalPages && progress.analyzedPages > 0
       ? Math.round((progress.analyzedPages / progress.totalPages) * 100)
       : progress.processedPages && progress.totalPages
-      ? Math.min(5, Math.round((progress.processedPages / progress.totalPages) * 100)) // Cap rendering progress at 5%
+      ? Math.round((progress.processedPages / progress.totalPages) * 100)
       : 0
 
   return (
