@@ -151,12 +151,47 @@ export interface Relation {
   note?: string
 }
 
+// New: Wire connections that link to/from other pages
+export interface WireConnection {
+  label: string                    // Wire label (e.g., "LP", "LLO", "TTA")
+  wireSpec?: string                // Wire specification (e.g., "L-SSF 16 Y")
+  direction: "incoming" | "outgoing" | "bidirectional"
+  connectedComponent?: string      // Component this wire connects to on this page
+  bbox?: BoundingBox
+  confidence: number
+}
+
+// New: Reference markers (triangles, circles) that point to other pages/sections
+export interface ReferenceMarker {
+  value: string                    // The marker value (e.g., "1", "2", "A")
+  markerType: "triangle" | "circle" | "square" | "other"
+  description?: string             // What this marker represents
+  referencedPage?: number          // If known, the page this references
+  referencedSection?: string       // Section or diagram name
+  bbox?: BoundingBox
+  confidence: number
+}
+
+// New: Connector/terminal details with pin assignments
+export interface ConnectorPin {
+  connectorName: string            // Connector identifier (e.g., "J-EE", "J-FF")
+  pinNumber?: string               // Pin number or position
+  wireSpec?: string                // Wire specification (e.g., "L-SSF 16 Y")
+  signalName?: string              // Signal or function name
+  connectedTo?: string             // What this pin connects to
+  bbox?: BoundingBox
+  confidence: number
+}
+
 export interface PageAnalysis {
   summary: string
   topics: string[]
-  anchors: Anchor[]
+  anchors: Anchor[]                // DEPRECATED: Consider removing, redundant with entities
   entities: Entity[]
   relations: Relation[]
+  wireConnections?: WireConnection[]     // NEW: Labeled wires connecting to other pages
+  referenceMarkers?: ReferenceMarker[]   // NEW: Cross-reference markers
+  connectorPins?: ConnectorPin[]         // NEW: Detailed pin/terminal information
   confidence: number
   modelVersion: string
   promptVersion: string
@@ -168,7 +203,8 @@ export interface Page {
   workspaceId: ObjectId
   documentId: ObjectId
   pageNumber: number
-  imageData: string  // base64-encoded JPEG
+  imageData: string  // base64-encoded JPEG (full size)
+  thumbnailData?: string  // base64-encoded JPEG (256x256px thumbnail)
   imageHash: string  // SHA-256 hash
   analysis: PageAnalysis
   embedding: number[]  // 1536-dimensional vector

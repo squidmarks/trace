@@ -24,7 +24,7 @@ export default function WorkspaceDetailPage() {
       const response = await fetch(`/api/workspaces/${params.id}`)
       if (!response.ok) {
         if (response.status === 404 || response.status === 403) {
-          router.push("/workspaces")
+          router.push("/")
           return
         }
         throw new Error("Failed to fetch workspace")
@@ -69,10 +69,10 @@ export default function WorkspaceDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <Link
-            href="/workspaces"
+            href="/"
             className="text-blue-600 dark:text-blue-400 hover:underline"
           >
-            ← Back to Workspaces
+            ← Back to Chat
           </Link>
         </div>
 

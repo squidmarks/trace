@@ -69,7 +69,8 @@ export async function GET(
           workspaceId: 1,
           documentId: 1,
           pageNumber: 1,
-          imageData: 1,
+          thumbnailData: 1, // Prefer thumbnail for list view
+          imageData: 1, // Fallback if thumbnail doesn't exist
           width: 1,
           height: 1,
           analysis: 1,
@@ -105,7 +106,7 @@ export async function GET(
         filename: docsMap.get(page.documentId.toString())?.filename || "Unknown",
       },
       pageNumber: page.pageNumber,
-      imageData: page.imageData, // Base64 thumbnail
+      imageData: page.thumbnailData || page.imageData, // Use thumbnail, fallback to full image
       width: page.width,
       height: page.height,
       analysis: {

@@ -53,10 +53,10 @@ export default function NewWorkspacePage() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <Link
-            href="/workspaces"
+            href="/"
             className="text-blue-600 dark:text-blue-400 hover:underline"
           >
-            ← Back to Workspaces
+            ← Back to Chat
           </Link>
         </div>
 
@@ -123,7 +123,7 @@ export default function NewWorkspacePage() {
               </button>
               
               <Link
-                href="/workspaces"
+                href="/"
                 className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-center"
               >
                 Cancel

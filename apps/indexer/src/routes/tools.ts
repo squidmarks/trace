@@ -52,8 +52,8 @@ router.post("/searchPages", async (req: Request, res: Response) => {
 
     // Execute search with text score for ranking
     // Note: MongoDB textScore typically ranges from 0.5 to 3.0+
-    // We filter for minimum quality (score > 0.75) unless user requests more results
-    const minScore = searchLimit > 15 ? 0.5 : 0.75 // Lower threshold for exploratory searches
+    // We use aggressive filtering to ensure only highly relevant pages are returned
+    const minScore = searchLimit > 15 ? 0.85 : 1.0 // Higher threshold for better precision
     
     const results = await pages
       .find(filter, {
@@ -68,7 +68,7 @@ router.post("/searchPages", async (req: Request, res: Response) => {
         },
       })
       .sort({ score: { $meta: "textScore" } })
-      .limit(searchLimit * 2) // Fetch extra to filter by score
+      .limit(searchLimit * 3) // Fetch more to ensure we have enough after aggressive filtering
       .toArray()
     
     // Filter by minimum score and then limit

@@ -1,33 +1,41 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useState, useEffect, useRef } from "react"
+import { useSession, signOut } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { ChevronDown, LogOut } from "lucide-react"
 import Sidebar from "@/components/Sidebar"
 import ChatInterface from "@/components/ChatInterface"
 
-export default function ChatHomePage() {
-  const { data: session, status } = useSession()
+export default function Dashboard() {
+  const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [workspaces, setWorkspaces] = useState<any[]>([])
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
-  // Redirect to signin if not authenticated
+  // Close user menu when clicking outside
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/api/auth/signin")
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false)
+      }
     }
-  }, [status, router])
 
-  // Load workspaces and set initial workspace
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  // Initialize app and load workspaces
   useEffect(() => {
-    if (status === "authenticated") {
-      loadWorkspaces()
-    }
-  }, [status])
+    // Bootstrap app on first authenticated load (creates admin user if needed)
+    fetch("/api/bootstrap").catch(err => console.warn("Bootstrap warning:", err))
+    loadWorkspaces()
+  }, [])
 
   // Check URL params for workspace/session
   useEffect(() => {
@@ -113,14 +121,6 @@ export default function ChatHomePage() {
 
   const currentWorkspace = workspaces.find((w) => w._id === currentWorkspaceId)
 
-  if (status === "loading") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar */}
@@ -156,16 +156,39 @@ export default function ChatHomePage() {
             )}
           </div>
 
-          {/* User Profile */}
-          <div className="flex items-center gap-3">
-            {session?.user?.image && (
-              <img
-                src={session.user.image}
-                alt={session.user.name || "User"}
-                className="w-8 h-8 rounded-full"
-              />
+          {/* User Profile Menu */}
+          <div className="relative" ref={userMenuRef}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              {session?.user?.image && (
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || "User"}
+                  className="w-8 h-8 rounded-full"
+                />
+              )}
+              <span className="text-sm text-gray-700">{session?.user?.name}</span>
+              <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-medium text-gray-900">{session?.user?.name}</p>
+                  <p className="text-xs text-gray-500 mt-1">{session?.user?.email}</p>
+                </div>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
             )}
-            <span className="text-sm text-gray-700">{session?.user?.name}</span>
           </div>
         </div>
 

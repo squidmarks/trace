@@ -16,7 +16,8 @@ export interface RenderOptions {
 
 export interface RenderedPage {
   pageNumber: number
-  imageData: string // base64 encoded JPEG
+  imageData: string // base64 encoded JPEG (full size)
+  thumbnailData: string // base64 encoded JPEG (256x256px thumbnail)
   width: number
   height: number
 }
@@ -88,6 +89,7 @@ export async function renderPdfToImages(
       const image = sharp(pngBuffer)
       const metadata = await image.metadata()
 
+      // Generate full-size JPEG
       const jpegBuffer = await image
         .jpeg({
           quality: quality,
@@ -95,26 +97,36 @@ export async function renderPdfToImages(
         })
         .toBuffer()
 
+      // Generate thumbnail (256x256px, maintain aspect ratio)
+      const thumbnailBuffer = await sharp(pngBuffer)
+        .resize(256, 256, {
+          fit: "inside", // Maintain aspect ratio
+          withoutEnlargement: true,
+        })
+        .jpeg({
+          quality: 80,
+          mozjpeg: true,
+        })
+        .toBuffer()
+
       // Convert to base64
       const base64Image = jpegBuffer.toString("base64")
-
-      renderedPages.push({
-        pageNumber: pageNum,
-        imageData: base64Image,
-        width: metadata.width || 0,
-        height: metadata.height || 0,
-      })
+      const base64Thumbnail = thumbnailBuffer.toString("base64")
 
       const renderedPage: RenderedPage = {
         pageNumber: pageNum,
         imageData: base64Image,
+        thumbnailData: base64Thumbnail,
         width: metadata.width || 0,
         height: metadata.height || 0,
       }
 
       logger.debug(
-        `   ✅ Page ${pageNum} rendered (${Math.round(jpegBuffer.length / 1024)}KB)`
+        `   ✅ Page ${pageNum} rendered (Full: ${Math.round(jpegBuffer.length / 1024)}KB, Thumb: ${Math.round(thumbnailBuffer.length / 1024)}KB)`
       )
+
+      // Add to array for return value
+      renderedPages.push(renderedPage)
 
       // Call callback with rendered page (allows caller to save immediately)
       await onPageRendered?.(renderedPage, pageNum, imageFiles.length)

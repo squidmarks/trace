@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { 
   ChevronDown, 
+  ChevronLeft,
   Plus, 
   MessageSquare, 
   FolderOpen,
@@ -13,8 +14,11 @@ import {
   Trash2,
   Edit2,
   Check,
-  Settings
+  Settings,
+  AlertCircle,
+  Search
 } from "lucide-react"
+import ConfirmButton from "./ConfirmButton"
 
 interface Workspace {
   _id: string
@@ -27,7 +31,7 @@ interface ChatSession {
   _id: string
   workspaceId: string
   title?: string
-  messages: any[]
+  messageCount: number
   createdAt: Date
   updatedAt: Date
 }
@@ -63,6 +67,7 @@ export default function Sidebar({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState("")
   const [contextMenuSessionId, setContextMenuSessionId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Load workspaces
   useEffect(() => {
@@ -72,9 +77,20 @@ export default function Sidebar({
   // Load chat history when workspace changes
   useEffect(() => {
     if (currentWorkspaceId) {
-      loadChatHistory(currentWorkspaceId)
+      loadChatHistory(currentWorkspaceId, searchQuery)
     }
   }, [currentWorkspaceId])
+
+  // Reload when search query changes (with debounce)
+  useEffect(() => {
+    if (!currentWorkspaceId) return
+
+    const timeoutId = setTimeout(() => {
+      loadChatHistory(currentWorkspaceId, searchQuery)
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, currentWorkspaceId])
 
   // Reload workspaces when workspace is updated
   useEffect(() => {
@@ -98,10 +114,14 @@ export default function Sidebar({
     }
   }
 
-  const loadChatHistory = async (workspaceId: string) => {
+  const loadChatHistory = async (workspaceId: string, search?: string) => {
     setIsLoadingSessions(true)
     try {
-      const response = await fetch(`/api/workspaces/${workspaceId}/chat`)
+      const url = new URL(`/api/workspaces/${workspaceId}/chat`, window.location.origin)
+      if (search && search.trim()) {
+        url.searchParams.set('search', search.trim())
+      }
+      const response = await fetch(url.toString())
       if (response.ok) {
         const data = await response.json()
         setChatSessions(data.sessions || [])
@@ -116,7 +136,7 @@ export default function Sidebar({
   // Reload chat history when a new session is created or messages are added
   const reloadChatHistory = () => {
     if (currentWorkspaceId) {
-      loadChatHistory(currentWorkspaceId)
+      loadChatHistory(currentWorkspaceId, searchQuery)
     }
   }
 
@@ -129,7 +149,6 @@ export default function Sidebar({
 
   const deleteSession = async (sessionId: string) => {
     if (!currentWorkspaceId) return
-    if (!confirm("Delete this chat? This action cannot be undone.")) return
 
     try {
       const response = await fetch(
@@ -145,18 +164,17 @@ export default function Sidebar({
         if (sessionId === currentSessionId) {
           onNewChat()
         }
+      } else {
+        console.error("Failed to delete session")
       }
     } catch (error) {
       console.error("Error deleting session:", error)
-      alert("Failed to delete chat")
     }
   }
 
   const startEditingSession = (session: ChatSession) => {
     setEditingSessionId(session._id)
-    setEditingTitle(
-      session.title || session.messages?.[0]?.content?.substring(0, 50) || "New Chat"
-    )
+    setEditingTitle(session.title || "New Chat")
   }
 
   const saveSessionTitle = async (sessionId: string) => {
@@ -253,8 +271,9 @@ export default function Sidebar({
         <button
           onClick={() => setIsCollapsed(true)}
           className="p-1 hover:bg-gray-200 rounded"
+          title="Collapse sidebar"
         >
-          <X className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
       </div>
 
@@ -327,7 +346,7 @@ export default function Sidebar({
       </div>
 
       {/* New Chat Button */}
-      <div className="p-4">
+      <div className="p-4 pb-2">
         <button
           onClick={onNewChat}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -335,6 +354,34 @@ export default function Sidebar({
           <Plus className="w-4 h-4" />
           <span className="text-sm font-medium">New Chat</span>
         </button>
+      </div>
+
+      {/* Search Chat History */}
+      <div className="px-4 pb-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-xs text-gray-500 mt-1">
+            Showing up to 50 results
+          </p>
+        )}
       </div>
 
       {/* Chat History */}
@@ -351,9 +398,23 @@ export default function Sidebar({
           </div>
         ) : chatSessions.length === 0 ? (
           <div className="text-center py-8 text-gray-500 text-sm">
-            No chat history yet
-            <br />
-            Start a new conversation
+            {searchQuery ? (
+              <>
+                <p className="mb-2">No conversations found</p>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-blue-600 hover:text-blue-700 text-xs"
+                >
+                  Clear search
+                </button>
+              </>
+            ) : (
+              <>
+                No chat history yet
+                <br />
+                Start a new conversation
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-6">
@@ -412,12 +473,10 @@ export default function Sidebar({
                               <MessageSquare className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm text-gray-900 line-clamp-2">
-                                  {session.title ||
-                                    session.messages?.[0]?.content?.substring(0, 100) ||
-                                    "New Chat"}
+                                  {session.title || "New Chat"}
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">
-                                  {session.messages?.length || 0} messages
+                                  {session.messageCount} {session.messageCount === 1 ? 'message' : 'messages'}
                                 </div>
                               </div>
                             </button>
@@ -432,16 +491,17 @@ export default function Sidebar({
                               >
                                 <Edit2 className="w-3.5 h-3.5 text-gray-500" />
                               </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
+                              <ConfirmButton
+                                onConfirm={(e) => {
+                                  e?.stopPropagation()
                                   deleteSession(session._id)
                                 }}
                                 className="p-1 hover:bg-gray-100 rounded"
-                                title="Delete"
+                                confirmText="Delete chat?"
+                                cancelText="No"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                              </button>
+                              </ConfirmButton>
                             </div>
                           </div>
                         )}

@@ -21,10 +21,10 @@ export default function ChatPage() {
         {/* Header */}
         <div className="mb-6">
           <Link
-            href="/workspaces"
+            href="/"
             className="text-blue-600 hover:text-blue-700 text-sm mb-2 inline-block"
           >
-            ← Back to Workspaces
+            ← Back to Chat
           </Link>
         </div>
 

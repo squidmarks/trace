@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { FileSearch, FileText, Search, XCircle } from "lucide-react"
+import { FileSearch, FileText, Search, XCircle, X } from "lucide-react"
 import type { Document as TraceDocument, Workspace, Role } from "@trace/shared"
 import DocumentUpload from "@/components/DocumentUpload"
 import AddFromUrlModal from "@/components/AddFromUrlModal"
 import ConfirmButton from "@/components/ConfirmButton"
-import WorkspaceHeader from "@/components/WorkspaceHeader"
 import IndexingProgress from "@/components/IndexingProgress"
 import DocumentsList from "@/components/DocumentsList"
 import WorkspaceLayout from "@/components/WorkspaceLayout"
@@ -24,6 +23,7 @@ export default function DocumentsPage() {
   const [showUrlModal, setShowUrlModal] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
   const [indexProgress, setIndexProgress] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchWorkspace()
@@ -91,8 +91,8 @@ export default function DocumentsPage() {
       )
 
       if (!response.ok) {
-        const error = await response.json()
-        alert(error.error || "Failed to delete document")
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to delete document")
         return
       }
 
@@ -100,7 +100,7 @@ export default function DocumentsPage() {
       fetchDocuments()
     } catch (error) {
       console.error("Error deleting document:", error)
-      alert("Failed to delete document")
+      setError("Failed to delete document")
     }
   }
 
@@ -118,8 +118,8 @@ export default function DocumentsPage() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        alert(error.error || "Failed to start indexing")
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to start indexing")
         return
       }
 
@@ -127,7 +127,7 @@ export default function DocumentsPage() {
       setIsIndexing(true)
     } catch (error) {
       console.error("Error starting index:", error)
-      alert("Failed to start indexing")
+      setError("Failed to start indexing")
     }
   }
 
@@ -145,8 +145,8 @@ export default function DocumentsPage() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        alert(error.error || "Failed to abort indexing")
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to abort indexing")
         return
       }
 
@@ -156,6 +156,7 @@ export default function DocumentsPage() {
       fetchDocuments()
     } catch (error) {
       console.error("Error aborting index:", error)
+      setError("Failed to abort indexing")
     }
   }
 
@@ -168,8 +169,8 @@ export default function DocumentsPage() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        alert(error.error || "Failed to update workspace name")
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to update workspace name")
         return
       }
 
@@ -178,7 +179,7 @@ export default function DocumentsPage() {
       window.dispatchEvent(new Event("workspace-updated"))
     } catch (error) {
       console.error("Error updating workspace name:", error)
-      alert("Failed to update workspace name")
+      setError("Failed to update workspace name")
     }
   }
 
@@ -187,16 +188,16 @@ export default function DocumentsPage() {
       const response = await fetch(`/api/workspaces/${params.id}`, { method: "DELETE" })
 
       if (!response.ok) {
-        const error = await response.json()
-        alert(error.error || "Failed to delete workspace")
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to delete workspace")
         return
       }
 
       console.log("Workspace deleted successfully")
-      router.push("/workspaces")
+      router.push("/")
     } catch (error) {
       console.error("Error deleting workspace:", error)
-      alert("Failed to delete workspace")
+      setError("Failed to delete workspace")
     }
   }
 
@@ -218,12 +219,33 @@ export default function DocumentsPage() {
     <WorkspaceLayout>
       <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <WorkspaceHeader
-            workspace={workspace}
-            role={role}
-            onRename={handleRenameWorkspace}
-            onDelete={handleDeleteWorkspace}
-          />
+          {/* Error Banner */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start justify-between">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-400 hover:text-red-600 dark:hover:text-red-300"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Workspace Actions */}
+          {role === "owner" && (
+            <div className="flex justify-end mb-4">
+              <ConfirmButton
+                onConfirm={handleDeleteWorkspace}
+                className="text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-2 px-3 py-2"
+                confirmText="Yes, delete"
+                cancelText="Cancel"
+              >
+                <XCircle size={18} />
+                Delete Workspace
+              </ConfirmButton>
+            </div>
+          )}
 
           {/* Tab Navigation */}
           <div className="mb-6 border-b border-gray-200 dark:border-gray-700">

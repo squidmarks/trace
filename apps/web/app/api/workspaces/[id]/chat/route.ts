@@ -92,14 +92,30 @@ export async function GET(
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
-    // Get all sessions for this workspace and user
+    // Get search query from URL params
+    const { searchParams } = new URL(request.url)
+    const searchQuery = searchParams.get('search')
+
+    // Build filter
+    const filter: any = {
+      workspaceId: new ObjectId(params.id),
+      userId: new ObjectId(session.user.id),
+    }
+
+    // Add search filter if provided
+    if (searchQuery && searchQuery.trim()) {
+      filter.$or = [
+        { title: { $regex: searchQuery.trim(), $options: 'i' } },
+        { 'messages.content': { $regex: searchQuery.trim(), $options: 'i' } }
+      ]
+    }
+
+    // Get sessions for this workspace and user
     const chatSessions = await getChatSessionsCollection()
     const sessions = await chatSessions
-      .find({
-        workspaceId: new ObjectId(params.id),
-        userId: new ObjectId(session.user.id),
-      })
+      .find(filter)
       .sort({ updatedAt: -1 }) // Most recent first
+      .limit(50) // Limit to 50 sessions
       .toArray()
 
     // Format response

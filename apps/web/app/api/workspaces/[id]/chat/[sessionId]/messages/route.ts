@@ -63,78 +63,137 @@ export async function POST(
     // Get workspace config for model selection
     const workspaces = await (await import("@/lib/db")).getWorkspacesCollection()
     const workspace = await workspaces.findOne({ _id: new ObjectId(params.id) })
-    const model = workspace?.config?.chat?.model || "gpt-4o-mini"
+    const model = workspace?.config?.chat?.model || "gpt-5-chat-latest"
 
-    // Generate AI response with streaming
-    let fullContent = ""
-    const citations: Citation[] = []
-    let tokenUsage: any = null
-    const messagesToSave: ChatMessage[] = [] // Track ALL messages to save
-
-    for await (const event of generateChatCompletion(
-      params.id,
-      [...chatSession.messages, userMessage],
-      model
-    )) {
-      if (event.type === "content" && event.content) {
-        fullContent += event.content
-      } else if (event.type === "toolCall" && event.toolCall) {
-        // Tool call event means assistant made a tool call
-        // We'll save this when we get the toolResult
-      } else if (event.type === "toolResult" && event.toolResult) {
-        // Extract citations from search results
-        if (event.toolResult.result.results) {
-          for (const result of event.toolResult.result.results) {
-            citations.push({
-              pageId: new ObjectId(result.pageId),
-              documentId: new ObjectId(result.documentId),
-              pageNumber: result.pageNumber,
-              excerpt: result.summary?.substring(0, 200),
-            })
-          }
+    // Create streaming response with Server-Sent Events
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      async start(controller) {
+        const sendEvent = (event: any) => {
+          const data = `data: ${JSON.stringify(event)}\n\n`
+          controller.enqueue(encoder.encode(data))
         }
-      } else if (event.type === "done") {
-        tokenUsage = event.usage
-        break
-      }
-    }
 
-    // Create final assistant message (only save the final response, not intermediate tool calls)
-    const assistantMessage: ChatMessage = {
-      role: "assistant",
-      content: fullContent,
-      createdAt: new Date(),
-      model,
-      citations: citations.length > 0 ? citations : undefined,
-      tokenUsage,
-      finishReason: "stop",
-    }
+        let fullContent = ""
+        const citations: Citation[] = []
+        let tokenUsage: any = null
 
-    // Add assistant response to session
-    await chatSessions.updateOne(
-      { _id: new ObjectId(params.sessionId) },
-      {
-        $push: { messages: assistantMessage } as any,
-        $set: { updatedAt: new Date() },
-      }
-    )
+        try {
+          for await (const event of generateChatCompletion(
+            params.id,
+            [...chatSession.messages, userMessage],
+            model
+          )) {
+            if (event.type === "content" && event.content) {
+              fullContent += event.content
+              sendEvent({ type: "content", content: event.content })
+            } else if (event.type === "toolCall" && event.toolCall) {
+              // Send progress message for tool call
+              const toolName = event.toolCall.name
+              const args = JSON.parse(event.toolCall.arguments || "{}")
+              
+              let progressMessage = ""
+              if (toolName === "searchPages") {
+                progressMessage = `🔍 Searching for: "${args.query}"...`
+              } else if (toolName === "getPage") {
+                progressMessage = `📄 Analyzing page details...`
+              }
+              
+              sendEvent({ 
+                type: "progress", 
+                message: progressMessage,
+                toolCall: { name: toolName, arguments: args }
+              })
+            } else if (event.type === "toolResult" && event.toolResult) {
+              // Send progress for tool result
+              const result = event.toolResult.result
+              
+              if (result.results && result.results.length > 0) {
+                const pages = result.results.slice(0, 3).map((r: any) => 
+                  `Page ${r.pageNumber} (${r.documentName})`
+                ).join(", ")
+                sendEvent({ 
+                  type: "progress", 
+                  message: `✓ Found ${result.results.length} relevant pages: ${pages}${result.results.length > 3 ? '...' : ''}`
+                })
+              } else if (result.page) {
+                sendEvent({ 
+                  type: "progress", 
+                  message: `✓ Retrieved details from Page ${result.page.pageNumber}`
+                })
+              }
+              
+              // Extract citations from search results
+              if (result.results) {
+                for (const searchResult of result.results) {
+                  citations.push({
+                    pageId: new ObjectId(searchResult.pageId),
+                    documentId: new ObjectId(searchResult.documentId),
+                    pageNumber: searchResult.pageNumber,
+                    excerpt: searchResult.summary?.substring(0, 200),
+                  })
+                }
+              }
+            } else if (event.type === "done") {
+              tokenUsage = event.usage
+              break
+            }
+          }
 
-    // Generate title in background if this is the first message
-    if (chatSession.messages.length === 0 && !chatSession.title) {
-      // Don't await - let it run in background
-      generateSessionTitle(params.sessionId, userMessage.content, fullContent).catch((err) =>
-        console.error("Error generating session title:", err)
-      )
-    }
+          // Create final assistant message
+          const assistantMessage: ChatMessage = {
+            role: "assistant",
+            content: fullContent,
+            createdAt: new Date(),
+            model,
+            citations: citations.length > 0 ? citations : undefined,
+            tokenUsage,
+            finishReason: "stop",
+          }
 
-    return NextResponse.json({
-      message: {
-        ...assistantMessage,
-        citations: citations.map((c) => ({
-          ...c,
-          pageId: c.pageId.toString(),
-          documentId: c.documentId.toString(),
-        })),
+          // Save to database
+          await chatSessions.updateOne(
+            { _id: new ObjectId(params.sessionId) },
+            {
+              $push: { messages: assistantMessage } as any,
+              $set: { updatedAt: new Date() },
+            }
+          )
+
+          // Generate title in background if this is the first message
+          if (chatSession.messages.length === 0 && !chatSession.title) {
+            generateSessionTitle(params.sessionId, userMessage.content, fullContent).catch((err) =>
+              console.error("Error generating session title:", err)
+            )
+          }
+
+          // Send final done event with complete message
+          sendEvent({
+            type: "done",
+            message: {
+              ...assistantMessage,
+              citations: citations.map((c) => ({
+                ...c,
+                pageId: c.pageId.toString(),
+                documentId: c.documentId.toString(),
+              })),
+            },
+          })
+
+          controller.close()
+        } catch (error: any) {
+          console.error("Error during streaming:", error)
+          sendEvent({ type: "error", error: error.message })
+          controller.close()
+        }
+      },
+    })
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
       },
     })
   } catch (error: any) {

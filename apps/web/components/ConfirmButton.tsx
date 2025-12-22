@@ -60,31 +60,36 @@ export default function ConfirmButton({
 
   if (isConfirming) {
     return (
-      <div
-        className="inline-flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200"
-        onBlur={handleBlur}
-      >
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {confirmText}
-        </span>
-        <button
-          onClick={handleConfirm}
-          disabled={isLoading}
-          className={`px-3 py-1 text-sm font-medium rounded transition ${
-            confirmClassName ||
-            "bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-          }`}
-          autoFocus
+      <div className="relative inline-block">
+        <div
+          className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 z-50"
+          style={{ minWidth: 'max-content' }}
+          onBlur={handleBlur}
         >
-          {isLoading ? "..." : "Yes"}
-        </button>
-        <button
-          onClick={handleCancel}
-          disabled={isLoading}
-          className="px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition"
-        >
-          {cancelText}
-        </button>
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap mr-1">
+            {confirmText}
+          </span>
+          <button
+            onClick={handleConfirm}
+            disabled={isLoading}
+            className={`px-2 py-1 text-xs font-medium rounded border transition ${
+              confirmClassName ||
+              "bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 border-red-700"
+            }`}
+            autoFocus
+          >
+            {isLoading ? "..." : "Yes"}
+          </button>
+          <button
+            onClick={handleCancel}
+            disabled={isLoading}
+            className="px-2 py-1 text-xs font-medium rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+          >
+            {cancelText}
+          </button>
+        </div>
+        {/* Invisible placeholder maintains button size */}
+        <div className="opacity-0 pointer-events-none">{children}</div>
       </div>
     )
   }

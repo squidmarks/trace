@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
-import { Search, FileText, Loader2, AlertCircle } from "lucide-react"
+import { Search, FileText, Loader2, AlertCircle, X, ZoomIn, ZoomOut, Maximize2 } from "lucide-react"
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
 import WorkspaceLayout from "@/components/WorkspaceLayout"
 
 interface SearchResult {
@@ -93,15 +94,7 @@ export default function SearchPage() {
     <WorkspaceLayout>
       <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
         <div className="container mx-auto px-4 py-8 max-w-7xl">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">Search Workspace</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Search across all indexed pages using semantic analysis
-            </p>
-          </div>
-
-        {/* Tab Navigation */}
+          {/* Tab Navigation */}
         <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
           <nav className="-mb-px flex space-x-8">
             <Link
@@ -196,7 +189,7 @@ export default function SearchPage() {
                     {/* Thumbnail */}
                     <div className="flex-shrink-0">
                       <img
-                        src={result.imageData}
+                        src={`data:image/jpeg;base64,${result.imageData}`}
                         alt={`Page ${result.pageNumber}`}
                         className="w-32 h-32 object-contain border border-gray-200 dark:border-gray-700 rounded"
                       />
@@ -259,74 +252,122 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Page Viewer Modal */}
+      {/* Page Viewer Modal with Zoom */}
       {selectedPage && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={() => setSelectedPage(null)}
         >
           <div
-            className="bg-white dark:bg-gray-800 rounded-lg max-w-5xl w-full max-h-[90vh] overflow-auto"
+            className="bg-white dark:bg-gray-800 rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold mb-1">{selectedPage.document.filename}</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Page {selectedPage.pageNumber}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedPage(null)}
-                  className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  ✕
-                </button>
+            {/* Modal Header */}
+            <div className="flex items-start justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <div>
+                <h2 className="text-lg font-semibold mb-1">{selectedPage.document.filename}</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Page {selectedPage.pageNumber}</p>
               </div>
+              <button
+                onClick={() => setSelectedPage(null)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              <div className="mb-4">
-                <img
-                  src={selectedPage.imageData}
-                  alt={`Page ${selectedPage.pageNumber}`}
-                  className="w-full border border-gray-200 dark:border-gray-700 rounded"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Summary</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{selectedPage.analysis.summary}</p>
-                </div>
-
-                {selectedPage.analysis.topics.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Topics</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedPage.analysis.topics.map((topic, idx) => (
-                        <span
-                          key={idx}
-                          className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded"
-                        >
-                          {topic}
-                        </span>
-                      ))}
+            {/* Modal Content with Zoom */}
+            <div className="overflow-hidden max-h-[calc(90vh-8rem)]">
+              <TransformWrapper
+                initialScale={1}
+                minScale={0.5}
+                maxScale={4}
+                doubleClick={{ mode: "toggle" }}
+                wheel={{ step: 0.1 }}
+                pinch={{ step: 5 }}
+                panning={{ velocityDisabled: true }}
+              >
+                {({ zoomIn, zoomOut, resetTransform }) => (
+                  <div className="relative h-full">
+                    {/* Zoom Controls */}
+                    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2">
+                      <button
+                        onClick={() => zoomIn()}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
+                        title="Zoom In"
+                      >
+                        <ZoomIn className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => zoomOut()}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
+                        title="Zoom Out"
+                      >
+                        <ZoomOut className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => resetTransform()}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
+                        title="Reset Zoom"
+                      >
+                        <Maximize2 className="w-5 h-5" />
+                      </button>
                     </div>
-                  </div>
-                )}
 
-                {selectedPage.analysis.entities.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Entities</h3>
-                    <div className="space-y-1">
-                      {selectedPage.analysis.entities.map((entity, idx) => (
-                        <div key={idx} className="text-sm">
-                          <span className="font-medium text-gray-700 dark:text-gray-300">{entity.type}:</span>{" "}
-                          <span className="text-gray-600 dark:text-gray-400">{entity.value}</span>
+                    {/* Scrollable Container */}
+                    <div className="overflow-y-auto max-h-[calc(90vh-8rem)] p-4">
+                      <TransformComponent
+                        wrapperStyle={{ width: "100%", height: "100%" }}
+                        contentStyle={{ width: "100%" }}
+                      >
+                        <img
+                          src={`data:image/jpeg;base64,${selectedPage.imageData}`}
+                          alt={`Page ${selectedPage.pageNumber}`}
+                          className="w-full rounded-lg shadow-lg mb-4 cursor-move"
+                        />
+                      </TransformComponent>
+
+                      {/* Analysis Section */}
+                      <div className="space-y-3 mt-4">
+                        <div>
+                          <h4 className="font-semibold text-sm mb-1">Summary</h4>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{selectedPage.analysis.summary}</p>
                         </div>
-                      ))}
+
+                        {selectedPage.analysis.topics.length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-sm mb-1">Topics</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedPage.analysis.topics.map((topic, idx) => (
+                                <span
+                                  key={idx}
+                                  className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded"
+                                >
+                                  {topic}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedPage.analysis.entities.length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-sm mb-1">Entities</h4>
+                            <div className="space-y-1">
+                              {selectedPage.analysis.entities.map((entity, idx) => (
+                                <div key={idx} className="text-sm">
+                                  <span className="font-medium">{entity.type}:</span>{" "}
+                                  <span className="text-gray-600 dark:text-gray-400">{entity.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
-              </div>
+              </TransformWrapper>
             </div>
           </div>
         </div>
