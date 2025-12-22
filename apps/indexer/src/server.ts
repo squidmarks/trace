@@ -11,7 +11,7 @@ import jobsRouter, { setSocketIo } from "./routes/jobs.js"
 import toolsRouter from "./routes/tools.js"
 import { socketAuthMiddleware, verifyWorkspaceAccess } from "./lib/auth.js"
 import { resumeInProgressJobs } from "./lib/indexing-processor.js"
-import { getIndexJobsCollection } from "./lib/db.js"
+import { getIndexJobsCollection, getPagesCollection } from "./lib/db.js"
 import logger from "./lib/logger.js"
 
 const PORT = process.env.PORT || 3001
@@ -216,13 +216,44 @@ io.on("connection", (socket) => {
 // Export io for use in other modules
 export { io }
 
+// Ensure database indexes exist
+async function ensureIndexes() {
+  try {
+    const pages = await getPagesCollection()
+    
+    // Create text index on searchable fields for full-text search
+    await pages.createIndex(
+      {
+        "analysis.summary": "text",
+        "analysis.topics": "text",
+        "analysis.entities.text": "text",
+      },
+      {
+        name: "pages_text_search",
+        weights: {
+          "analysis.summary": 10,
+          "analysis.topics": 5,
+          "analysis.entities.text": 3,
+        },
+      }
+    )
+    
+    logger.success("✅ Database indexes verified")
+  } catch (error: any) {
+    logger.warn(`⚠️ Error ensuring indexes: ${error.message}`)
+  }
+}
+
 // Start server
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   logger.success(`🎉 Indexer Service ready!`)
   logger.success(`🌐 HTTP Server: http://localhost:${PORT}`)
   logger.success(`⚡ Socket.io Server: ws://localhost:${PORT}`)
   logger.info(`📡 Waiting for connections...`)
   logger.info("")
+
+  // Ensure database indexes
+  await ensureIndexes()
 
   // Resume any in-progress jobs
   resumeInProgressJobs(io).catch((error) => {
