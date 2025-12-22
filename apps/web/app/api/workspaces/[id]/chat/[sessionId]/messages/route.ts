@@ -63,7 +63,7 @@ export async function POST(
     // Get workspace config for model selection
     const workspaces = await (await import("@/lib/db")).getWorkspacesCollection()
     const workspace = await workspaces.findOne({ _id: new ObjectId(params.id) })
-    const model = workspace?.config?.chat?.model || "gpt-5-chat-latest"
+    const model = workspace?.config?.chat?.model || "gpt-5.2-chat-latest"
 
     // Create streaming response with Server-Sent Events
     const encoder = new TextEncoder()
@@ -79,6 +79,10 @@ export async function POST(
         let tokenUsage: any = null
 
         try {
+          console.log(`[Messages API] Starting chat completion for session ${params.sessionId}`)
+          console.log(`[Messages API] Model: ${model}`)
+          console.log(`[Messages API] Message count: ${chatSession.messages.length + 1}`)
+          
           for await (const event of generateChatCompletion(
             params.id,
             [...chatSession.messages, userMessage],
@@ -129,6 +133,7 @@ export async function POST(
                   citations.push({
                     pageId: new ObjectId(searchResult.pageId),
                     documentId: new ObjectId(searchResult.documentId),
+                    documentName: searchResult.documentName,
                     pageNumber: searchResult.pageNumber,
                     excerpt: searchResult.summary?.substring(0, 200),
                   })
@@ -136,6 +141,12 @@ export async function POST(
               }
             } else if (event.type === "done") {
               tokenUsage = event.usage
+              // If no content was streamed but done event has content (e.g. max iterations message),
+              // use that content
+              if (!fullContent && event.content) {
+                console.log(`[Messages API] Using content from done event: "${event.content}"`)
+                fullContent = event.content
+              }
               break
             }
           }
@@ -151,6 +162,10 @@ export async function POST(
             finishReason: "stop",
           }
 
+          console.log(`[Messages API] Chat completion finished`)
+          console.log(`[Messages API] Content length: ${fullContent.length} characters`)
+          console.log(`[Messages API] Citations: ${citations.length}`)
+
           // Save to database
           await chatSessions.updateOne(
             { _id: new ObjectId(params.sessionId) },
@@ -159,6 +174,8 @@ export async function POST(
               $set: { updatedAt: new Date() },
             }
           )
+          
+          console.log(`[Messages API] Saved assistant message to database`)
 
           // Generate title in background if this is the first message
           if (chatSession.messages.length === 0 && !chatSession.title) {
@@ -182,8 +199,10 @@ export async function POST(
 
           controller.close()
         } catch (error: any) {
-          console.error("Error during streaming:", error)
-          sendEvent({ type: "error", error: error.message })
+          console.error("[Messages API] Error during streaming:", error)
+          console.error("[Messages API] Error stack:", error.stack)
+          console.error("[Messages API] Error name:", error.name)
+          sendEvent({ type: "error", error: error.message || "Unknown error during streaming" })
           controller.close()
         }
       },
@@ -246,13 +265,39 @@ export async function GET(
       return NextResponse.json({ error: "Session not found" }, { status: 404 })
     }
 
-    // Format messages
+    // Collect all unique document IDs from citations across all messages
+    const documentIds = new Set<string>()
+    chatSession.messages.forEach((msg: any) => {
+      if (msg.citations) {
+        msg.citations.forEach((c: any) => {
+          if (c.documentId) {
+            documentIds.add(c.documentId.toString())
+          }
+        })
+      }
+    })
+
+    // Fetch document names if we have citations
+    let documentsMap = new Map<string, string>()
+    if (documentIds.size > 0) {
+      const { getDocumentsCollection } = await import("@/lib/db")
+      const documents = await getDocumentsCollection()
+      const docs = await documents
+        .find({ _id: { $in: Array.from(documentIds).map(id => new ObjectId(id)) } })
+        .project({ _id: 1, filename: 1 })
+        .toArray()
+      
+      documentsMap = new Map(docs.map(d => [d._id.toString(), d.filename]))
+    }
+
+    // Format messages and populate document names in citations
     const formattedMessages = chatSession.messages.map((msg: any) => ({
       ...msg,
       citations: msg.citations?.map((c: any) => ({
         ...c,
         pageId: c.pageId?.toString(),
         documentId: c.documentId?.toString(),
+        documentName: documentsMap.get(c.documentId?.toString()) || c.documentName || "Unknown",
       })),
     }))
 

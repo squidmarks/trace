@@ -31,7 +31,8 @@ const MessageBubble = memo(({
   copiedMessageIndex, 
   onCopy, 
   onCitationClick,
-  onPageLinkClick 
+  onPageLinkClick,
+  workspaceId
 }: { 
   message: ChatMessage
   idx: number
@@ -39,6 +40,7 @@ const MessageBubble = memo(({
   onCopy: (content: string, idx: number) => void
   onCitationClick: (citation: Citation) => void
   onPageLinkClick: (href: string, citations?: Citation[]) => void
+  workspaceId: string
 }) => {
   // Memoized markdown components to prevent recreation on every render
   const markdownComponents = useMemo(() => ({
@@ -135,17 +137,36 @@ const MessageBubble = memo(({
         {message.role === "assistant" && message.citations && message.citations.length > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-300">
             <p className="text-xs text-gray-600 mb-2 font-medium">Sources:</p>
-            <div className="flex flex-wrap gap-2">
-              {message.citations.map((citation, cidx) => (
-                <button
-                  key={cidx}
-                  onClick={() => onCitationClick(citation)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-xs font-medium transition-colors cursor-pointer"
-                >
-                  <FileText className="w-3 h-3" />
-                  <span>Page {citation.pageNumber}</span>
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-3">
+              {message.citations.map((citation, cidx) => {
+                // Truncate document name if too long
+                const docName = citation.documentName || "Unknown"
+                const truncatedDocName = docName.length > 20 ? docName.substring(0, 17) + "..." : docName
+                
+                return (
+                  <button
+                    key={cidx}
+                    onClick={() => onCitationClick(citation)}
+                    className="flex flex-col items-center gap-1 group"
+                    title={`${docName} - Page ${citation.pageNumber}`}
+                  >
+                    <div className="relative border-2 border-gray-300 rounded shadow-sm group-hover:border-blue-500 group-hover:shadow-md transition-all overflow-hidden bg-white">
+                      <img
+                        src={`/api/workspaces/${workspaceId}/pages/${citation.pageId}/thumbnail`}
+                        alt={`Page ${citation.pageNumber}`}
+                        className="w-20 h-24 object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1 py-1">
+                        <div className="text-white text-[9px] font-medium leading-tight">
+                          <div className="truncate">{truncatedDocName}</div>
+                          <div>Page {citation.pageNumber}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -398,10 +419,15 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
         createdAt: new Date(),
       }
 
+      console.log(`[Chat] Starting SSE stream for session ${sid}`)
+      
       while (true) {
         const { done, value } = await reader.read()
         
-        if (done) break
+        if (done) {
+          console.log(`[Chat] Stream complete`)
+          break
+        }
 
         const chunk = decoder.decode(value)
         const lines = chunk.split("\n\n")
@@ -413,6 +439,7 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
             const data = JSON.parse(line.slice(6)) // Remove "data: " prefix
 
             if (data.type === "progress") {
+              console.log(`[Chat] Progress: ${data.message}`)
               setProgressMessage(data.message)
             } else if (data.type === "content") {
               // Once we start receiving content, update status to show we're writing
@@ -422,6 +449,8 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
               streamingAssistantMessage.content += data.content
               setStreamingContent((prev) => prev + data.content)
             } else if (data.type === "done") {
+              console.log(`[Chat] Done event received`)
+              console.log(`[Chat] Final message:`, data.message)
               setProgressMessage("")
               setStreamingContent("")
               
@@ -452,20 +481,22 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
                 onMessageSent?.()
               }, 3000)
             } else if (data.type === "error") {
+              console.error(`[Chat] Error event:`, data.error)
               throw new Error(data.error)
             }
           } catch (e) {
-            console.error("Error parsing SSE data:", e)
+            console.error("[Chat] Error parsing SSE data:", e, "Line:", line)
           }
         }
       }
     } catch (error) {
-      console.error("Error sending message:", error)
+      console.error("[Chat] Error sending message:", error)
       setError("Failed to send message. Please try again.")
       setProgressMessage("")
       setStreamingContent("")
       isSendingFirstMessage.current = false
     } finally {
+      console.log(`[Chat] sendMessage finally block, isLoading = false`)
       setIsLoading(false)
     }
   }
@@ -593,6 +624,7 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
               onCopy={handleCopyMessage}
               onCitationClick={handleCitationClick}
               onPageLinkClick={handlePageLink}
+              workspaceId={workspaceId}
             />
           ))
         )}
