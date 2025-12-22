@@ -166,11 +166,6 @@ router.post("/getPage", async (req: Request, res: Response) => {
       analysis: {
         summary: page.analysis?.summary || "",
         topics: page.analysis?.topics || [],
-        anchors: page.analysis?.anchors?.map((a: any) => ({
-          id: a.id,
-          label: a.label,
-          type: a.type,
-        })) || [],
         entities: page.analysis?.entities?.map((e: any) => ({
           type: e.type,
           value: e.value,

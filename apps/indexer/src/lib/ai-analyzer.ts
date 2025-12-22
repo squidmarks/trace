@@ -10,18 +10,6 @@ const openai = new OpenAI({
 interface AIPageAnalysis {
   summary: string
   topics: string[]
-  anchors: Array<{
-    id: string
-    label?: string
-    type: string
-    bbox?: {
-      x: number
-      y: number
-      w: number
-      h: number
-    }
-    confidence: number
-  }>
   entities: Array<{
     id: string
     type: string
@@ -67,18 +55,13 @@ const ANALYSIS_PROMPT = `Analyze this document page image and extract structured
 Return a JSON object with:
 1. **summary** (string): 2-3 sentence summary of the page content
 2. **topics** (string[]): 3-5 main topics/themes (lowercase, hyphenated)
-3. **anchors** (array): Visual landmarks for navigation (diagrams, tables, headings, images)
-   - id: unique identifier (lowercase-hyphenated)
-   - label: human-readable name
-   - type: "diagram", "table", "heading", "image", "chart", etc.
-   - confidence: 0.0-1.0
-4. **entities** (array): Important named entities (people, places, parts, specs, etc.)
+3. **entities** (array): Important named entities (people, places, parts, specs, etc.)
    - id: unique identifier
    - type: "person", "place", "part", "specification", "measurement", etc.
    - label: human-readable name
    - value: associated value if applicable (e.g., "12V" for a voltage spec)
    - confidence: 0.0-1.0
-5. **relations** (array): Relationships between entities
+4. **relations** (array): Relationships between entities
    - id: unique identifier
    - type: "connects-to", "part-of", "requires", "compatible-with", etc.
    - from: entity id
@@ -88,14 +71,14 @@ Return a JSON object with:
 
 **FOR WIRING DIAGRAMS AND SCHEMATICS, ALSO EXTRACT:**
 
-6. **wireConnections** (array): Labeled wires that connect to/from other pages (CRITICAL for tracing circuits)
+5. **wireConnections** (array): Labeled wires that connect to/from other pages (CRITICAL for tracing circuits)
    - label: Wire identifier at diagram edge (e.g., "LP", "LLO", "TTA", "GND")
    - wireSpec: Full wire specification if shown (e.g., "L-SSF 16 Y", "S-SSC 16 Y")
    - direction: "incoming", "outgoing", or "bidirectional"
    - connectedComponent: Which component on THIS page the wire connects to (if visible)
    - confidence: 0.0-1.0
 
-7. **referenceMarkers** (array): Cross-reference symbols pointing to other pages/sections (CRITICAL for navigation)
+6. **referenceMarkers** (array): Cross-reference symbols pointing to other pages/sections (CRITICAL for navigation)
    - value: The marker identifier (e.g., "1", "2", "A", "B")
    - markerType: "triangle", "circle", "square", or "other"
    - description: What the marker text says (e.g., "FPP (OMIT, HPD) A16, MILE CONTROL WIRING", "GROUND")
@@ -103,7 +86,7 @@ Return a JSON object with:
    - referencedSection: Section or diagram name if stated
    - confidence: 0.0-1.0
 
-8. **connectorPins** (array): Detailed connector/terminal pin assignments
+7. **connectorPins** (array): Detailed connector/terminal pin assignments
    - connectorName: Connector identifier (e.g., "J-EE", "J-FF", "Leveling Control")
    - pinNumber: Pin number or position if shown
    - wireSpec: Wire specification for this pin (e.g., "L-SSF 16 Y")
@@ -185,7 +168,6 @@ export async function analyzePage(
     }
 
     // Ensure arrays exist
-    aiAnalysis.anchors = aiAnalysis.anchors || []
     aiAnalysis.entities = aiAnalysis.entities || []
     aiAnalysis.relations = aiAnalysis.relations || []
     aiAnalysis.wireConnections = aiAnalysis.wireConnections || []
@@ -196,13 +178,6 @@ export async function analyzePage(
     const pageAnalysis: any = {
       summary: aiAnalysis.summary,
       topics: aiAnalysis.topics,
-      anchors: aiAnalysis.anchors.map((a) => ({
-        id: a.id,
-        label: a.label,
-        type: a.type,
-        bbox: a.bbox,
-        confidence: a.confidence,
-      })),
       entities: aiAnalysis.entities.map((e) => ({
         type: e.type,
         value: e.label, // Use label as value
@@ -274,7 +249,7 @@ export async function analyzePage(
     const linkingSummary = linkingInfo.length > 0 ? `, ${linkingInfo.join(", ")}` : ""
 
     logger.debug(
-      `   ✅ Analysis complete: ${pageAnalysis.topics.length} topics, ${pageAnalysis.entities.length} entities, ${pageAnalysis.anchors.length} anchors${linkingSummary} (${inputTokens}/${outputTokens} tokens, $${cost.toFixed(4)})`
+      `   ✅ Analysis complete: ${pageAnalysis.topics.length} topics, ${pageAnalysis.entities.length} entities${linkingSummary} (${inputTokens}/${outputTokens} tokens, $${cost.toFixed(4)})`
     )
 
     return {

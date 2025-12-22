@@ -118,14 +118,6 @@ export interface BoundingBox {
   h: number
 }
 
-export interface Anchor {
-  id: string
-  label?: string
-  type: string
-  bbox?: BoundingBox
-  confidence: number
-}
-
 export interface Entity {
   type: string
   value: string
@@ -186,12 +178,11 @@ export interface ConnectorPin {
 export interface PageAnalysis {
   summary: string
   topics: string[]
-  anchors: Anchor[]                // DEPRECATED: Consider removing, redundant with entities
   entities: Entity[]
   relations: Relation[]
-  wireConnections?: WireConnection[]     // NEW: Labeled wires connecting to other pages
-  referenceMarkers?: ReferenceMarker[]   // NEW: Cross-reference markers
-  connectorPins?: ConnectorPin[]         // NEW: Detailed pin/terminal information
+  wireConnections?: WireConnection[]     // Labeled wires connecting to other pages
+  referenceMarkers?: ReferenceMarker[]   // Cross-reference markers
+  connectorPins?: ConnectorPin[]         // Detailed pin/terminal information
   confidence: number
   modelVersion: string
   promptVersion: string
