@@ -37,6 +37,29 @@ interface AIPageAnalysis {
     label?: string
     confidence: number
   }>
+  wireConnections?: Array<{
+    label: string
+    wireSpec?: string
+    direction: "incoming" | "outgoing" | "bidirectional"
+    connectedComponent?: string
+    confidence: number
+  }>
+  referenceMarkers?: Array<{
+    value: string
+    markerType: "triangle" | "circle" | "square" | "other"
+    description?: string
+    referencedPage?: number
+    referencedSection?: string
+    confidence: number
+  }>
+  connectorPins?: Array<{
+    connectorName: string
+    pinNumber?: string
+    wireSpec?: string
+    signalName?: string
+    connectedTo?: string
+    confidence: number
+  }>
 }
 
 const ANALYSIS_PROMPT = `Analyze this document page image and extract structured information.
@@ -63,7 +86,39 @@ Return a JSON object with:
    - label: optional description
    - confidence: 0.0-1.0
 
-Focus on technical accuracy and extracting actionable information. For diagrams and schematics, identify components and their relationships.
+**FOR WIRING DIAGRAMS AND SCHEMATICS, ALSO EXTRACT:**
+
+6. **wireConnections** (array): Labeled wires that connect to/from other pages (CRITICAL for tracing circuits)
+   - label: Wire identifier at diagram edge (e.g., "LP", "LLO", "TTA", "GND")
+   - wireSpec: Full wire specification if shown (e.g., "L-SSF 16 Y", "S-SSC 16 Y")
+   - direction: "incoming", "outgoing", or "bidirectional"
+   - connectedComponent: Which component on THIS page the wire connects to (if visible)
+   - confidence: 0.0-1.0
+
+7. **referenceMarkers** (array): Cross-reference symbols pointing to other pages/sections (CRITICAL for navigation)
+   - value: The marker identifier (e.g., "1", "2", "A", "B")
+   - markerType: "triangle", "circle", "square", or "other"
+   - description: What the marker text says (e.g., "FPP (OMIT, HPD) A16, MILE CONTROL WIRING", "GROUND")
+   - referencedPage: Page number if explicitly stated
+   - referencedSection: Section or diagram name if stated
+   - confidence: 0.0-1.0
+
+8. **connectorPins** (array): Detailed connector/terminal pin assignments
+   - connectorName: Connector identifier (e.g., "J-EE", "J-FF", "Leveling Control")
+   - pinNumber: Pin number or position if shown
+   - wireSpec: Wire specification for this pin (e.g., "L-SSF 16 Y")
+   - signalName: Signal or function name if labeled
+   - connectedTo: What this pin connects to
+   - confidence: 0.0-1.0
+
+**CRITICAL INSTRUCTIONS FOR DIAGRAMS:**
+- Look at the EDGES of wiring diagrams for wire labels (LP, LLO, TTA, etc.) - these connect to other pages!
+- Look for shapes with numbers/letters inside (△1, △2, ○A, etc.) - these are cross-references!
+- Look for connector boxes with pin details and wire color codes
+- Wire specifications follow patterns like: [letter]-[code] [gauge] [color] (e.g., "L-SSF 16 Y")
+- Pay special attention to labeled wires entering/leaving the diagram boundaries
+
+Focus on technical accuracy and extracting actionable information. For diagrams and schematics, identify components, their relationships, AND the linking information that connects this page to others.
 
 Return ONLY valid JSON, no markdown formatting.`
 
@@ -111,7 +166,7 @@ export async function analyzePage(
           ],
         },
       ],
-      max_tokens: 2000,
+      max_tokens: 3000, // Increased for additional linking metadata
       temperature: 0.1, // Low temperature for consistency
       response_format: { type: "json_object" },
     })
@@ -133,9 +188,12 @@ export async function analyzePage(
     aiAnalysis.anchors = aiAnalysis.anchors || []
     aiAnalysis.entities = aiAnalysis.entities || []
     aiAnalysis.relations = aiAnalysis.relations || []
+    aiAnalysis.wireConnections = aiAnalysis.wireConnections || []
+    aiAnalysis.referenceMarkers = aiAnalysis.referenceMarkers || []
+    aiAnalysis.connectorPins = aiAnalysis.connectorPins || []
 
     // Convert to MongoDB PageAnalysis format
-    const pageAnalysis = {
+    const pageAnalysis: any = {
       summary: aiAnalysis.summary,
       topics: aiAnalysis.topics,
       anchors: aiAnalysis.anchors.map((a) => ({
@@ -166,8 +224,41 @@ export async function analyzePage(
       })),
       confidence: 0.85, // Overall confidence score
       modelVersion: "gpt-4o",
-      promptVersion: "v1.0",
+      promptVersion: "v2.0", // Updated version for enhanced linking metadata
       analyzedAt: new Date(),
+    }
+
+    // Add new linking metadata if present
+    if (aiAnalysis.wireConnections && aiAnalysis.wireConnections.length > 0) {
+      pageAnalysis.wireConnections = aiAnalysis.wireConnections.map((w) => ({
+        label: w.label,
+        wireSpec: w.wireSpec,
+        direction: w.direction,
+        connectedComponent: w.connectedComponent,
+        confidence: w.confidence,
+      }))
+    }
+
+    if (aiAnalysis.referenceMarkers && aiAnalysis.referenceMarkers.length > 0) {
+      pageAnalysis.referenceMarkers = aiAnalysis.referenceMarkers.map((m) => ({
+        value: m.value,
+        markerType: m.markerType,
+        description: m.description,
+        referencedPage: m.referencedPage,
+        referencedSection: m.referencedSection,
+        confidence: m.confidence,
+      }))
+    }
+
+    if (aiAnalysis.connectorPins && aiAnalysis.connectorPins.length > 0) {
+      pageAnalysis.connectorPins = aiAnalysis.connectorPins.map((p) => ({
+        connectorName: p.connectorName,
+        pinNumber: p.pinNumber,
+        wireSpec: p.wireSpec,
+        signalName: p.signalName,
+        connectedTo: p.connectedTo,
+        confidence: p.confidence,
+      }))
     }
 
     // Extract token usage
@@ -175,8 +266,15 @@ export async function analyzePage(
     const outputTokens = response.usage?.completion_tokens || 0
     const cost = calculateCost(inputTokens, outputTokens, model)
 
+    // Build detailed logging message
+    const linkingInfo = []
+    if (pageAnalysis.wireConnections?.length > 0) linkingInfo.push(`${pageAnalysis.wireConnections.length} wires`)
+    if (pageAnalysis.referenceMarkers?.length > 0) linkingInfo.push(`${pageAnalysis.referenceMarkers.length} refs`)
+    if (pageAnalysis.connectorPins?.length > 0) linkingInfo.push(`${pageAnalysis.connectorPins.length} pins`)
+    const linkingSummary = linkingInfo.length > 0 ? `, ${linkingInfo.join(", ")}` : ""
+
     logger.debug(
-      `   ✅ Analysis complete: ${pageAnalysis.topics.length} topics, ${pageAnalysis.entities.length} entities, ${pageAnalysis.anchors.length} anchors (${inputTokens}/${outputTokens} tokens, $${cost.toFixed(4)})`
+      `   ✅ Analysis complete: ${pageAnalysis.topics.length} topics, ${pageAnalysis.entities.length} entities, ${pageAnalysis.anchors.length} anchors${linkingSummary} (${inputTokens}/${outputTokens} tokens, $${cost.toFixed(4)})`
     )
 
     return {

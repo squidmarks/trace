@@ -157,7 +157,7 @@ router.post("/getPage", async (req: Request, res: Response) => {
     })
 
     // Format page details for AI consumption
-    const formattedPage = {
+    const formattedPage: any = {
       pageId: page._id.toString(),
       documentId: page.documentId.toString(),
       documentName: document?.filename || "Unknown",
@@ -184,6 +184,36 @@ router.post("/getPage", async (req: Request, res: Response) => {
         })) || [],
         confidence: page.analysis?.confidence || 0,
       },
+    }
+
+    // Include new linking metadata if present
+    if (page.analysis?.wireConnections && page.analysis.wireConnections.length > 0) {
+      formattedPage.analysis.wireConnections = page.analysis.wireConnections.map((w: any) => ({
+        label: w.label,
+        wireSpec: w.wireSpec,
+        direction: w.direction,
+        connectedComponent: w.connectedComponent,
+      }))
+    }
+
+    if (page.analysis?.referenceMarkers && page.analysis.referenceMarkers.length > 0) {
+      formattedPage.analysis.referenceMarkers = page.analysis.referenceMarkers.map((m: any) => ({
+        value: m.value,
+        markerType: m.markerType,
+        description: m.description,
+        referencedPage: m.referencedPage,
+        referencedSection: m.referencedSection,
+      }))
+    }
+
+    if (page.analysis?.connectorPins && page.analysis.connectorPins.length > 0) {
+      formattedPage.analysis.connectorPins = page.analysis.connectorPins.map((p: any) => ({
+        connectorName: p.connectorName,
+        pinNumber: p.pinNumber,
+        wireSpec: p.wireSpec,
+        signalName: p.signalName,
+        connectedTo: p.connectedTo,
+      }))
     }
 
     logger.info(`[Tools] getPage: Found page ${pageId}`)
