@@ -320,6 +320,7 @@ export default function DocumentsPage() {
             <DocumentsList
               documents={documents}
               role={role}
+              workspaceId={params.id as string}
               onDelete={handleDeleteDocument}
             />
           </div>
