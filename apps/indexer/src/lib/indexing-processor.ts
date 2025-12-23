@@ -169,6 +169,11 @@ export async function processIndexJob(
       const docId = doc._id.toString()
       const filename = doc.filename
 
+      // Per-document counters (reset for each document)
+      let currentDocumentTotalPages = 0
+      let currentDocumentProcessedPages = 0
+      let currentDocumentAnalyzedPages = 0
+
       // Emit immediate progress for this document
       io.to(`workspace:${workspaceId}`).emit("index:progress", {
         workspaceId,
@@ -178,6 +183,9 @@ export async function processIndexJob(
           filename,
           current: job.progress.processedDocuments + 1,
           total: docsToProcess.length,
+          totalPages: currentDocumentTotalPages,
+          processedPages: currentDocumentProcessedPages,
+          analyzedPages: currentDocumentAnalyzedPages,
         },
         totalDocuments: docsToProcess.length,
         processedDocuments: job.progress.processedDocuments,
@@ -212,6 +220,9 @@ export async function processIndexJob(
           filename,
           current: job.progress.processedDocuments + 1,
           total: docsToProcess.length,
+          totalPages: currentDocumentTotalPages,
+          processedPages: currentDocumentProcessedPages,
+          analyzedPages: currentDocumentAnalyzedPages,
         },
         totalDocuments: docsToProcess.length,
         processedDocuments: currentJob?.progress.processedDocuments || 0,
@@ -251,6 +262,9 @@ export async function processIndexJob(
                 filename,
                 current: job.progress.processedDocuments + 1,
                 total: docsToProcess.length,
+                totalPages: currentDocumentTotalPages,
+                processedPages: currentDocumentProcessedPages,
+                analyzedPages: currentDocumentAnalyzedPages,
               },
               totalDocuments: docsToProcess.length,
               processedDocuments: job.progress.processedDocuments,
@@ -274,6 +288,9 @@ export async function processIndexJob(
               filename,
               current: job.progress.processedDocuments + 1,
               total: docsToProcess.length,
+              totalPages: currentDocumentTotalPages,
+              processedPages: currentDocumentProcessedPages,
+              analyzedPages: currentDocumentAnalyzedPages,
             },
             totalDocuments: docsToProcess.length,
             processedDocuments: job.progress.processedDocuments,
@@ -292,8 +309,9 @@ export async function processIndexJob(
             quality: job.renderQuality,
           },
           async (page, current, total) => {
-            // First callback: increment total pages for this document
+            // First callback: set total pages for this document and increment overall total
             if (current === 1) {
+              currentDocumentTotalPages = total
               await indexJobs.updateOne(
                 { _id: job._id },
                 { 
@@ -328,7 +346,8 @@ export async function processIndexJob(
             
             logger.debug(`   💾 Saved page ${current}/${total}`)
             
-            // Update progress
+            // Update progress (both overall and per-document)
+            currentDocumentProcessedPages++
             await indexJobs.updateOne(
               { _id: job._id },
               { 
@@ -360,6 +379,9 @@ export async function processIndexJob(
                 filename,
                 current: job.progress.processedDocuments + 1,
                 total: docsToProcess.length,
+                totalPages: currentDocumentTotalPages,
+                processedPages: currentDocumentProcessedPages,
+                analyzedPages: currentDocumentAnalyzedPages,
               },
               totalDocuments: docsToProcess.length,
               processedDocuments: freshJob?.progress.processedDocuments || job.progress.processedDocuments,
@@ -387,6 +409,9 @@ export async function processIndexJob(
             height: (p as any).height || 0,
             _id: p._id
           }))
+          // Set per-document total pages for existing pages
+          currentDocumentTotalPages = allPages.length
+          currentDocumentProcessedPages = allPages.length
         }
 
         // Analyze pages that need analysis
@@ -396,6 +421,9 @@ export async function processIndexJob(
         })
         
         logger.info(`🤖 Analyzing ${pagesToAnalyze.length} pages (${allPages.length - pagesToAnalyze.length} already analyzed)...`)
+        
+        // Set per-document analyzed pages count for already-analyzed pages
+        currentDocumentAnalyzedPages = allPages.length - pagesToAnalyze.length
         
         // Emit "Preparing for document analysis..." message
         const currentJobBeforeAnalysis = await indexJobs.findOne({ _id: job._id })
@@ -407,6 +435,9 @@ export async function processIndexJob(
             filename,
             current: job.progress.processedDocuments + 1,
             total: docsToProcess.length,
+            totalPages: currentDocumentTotalPages,
+            processedPages: currentDocumentProcessedPages,
+            analyzedPages: currentDocumentAnalyzedPages,
           },
           totalDocuments: docsToProcess.length,
           processedDocuments: currentJobBeforeAnalysis?.progress.processedDocuments || job.progress.processedDocuments,
@@ -458,13 +489,16 @@ export async function processIndexJob(
               filename,
               current: job.progress.processedDocuments + 1,
               total: docsToProcess.length,
+              totalPages: currentDocumentTotalPages,
+              processedPages: currentDocumentProcessedPages,
+              analyzedPages: currentDocumentAnalyzedPages,
             },
             totalDocuments: docsToProcess.length,
             processedDocuments: preAnalysisJob?.progress.processedDocuments || job.progress.processedDocuments,
-            totalPages: allPages.length,
+            totalPages: preAnalysisJob?.progress.totalPages || allPages.length,
             processedPages: preAnalysisJob?.progress.processedPages || job.progress.processedPages,
             analyzedPages: preAnalysisJob?.progress.analyzedPages || job.progress.analyzedPages,
-            message: `Analyzing document... (${preAnalysisJob?.progress.analyzedPages || 0}/${allPages.length} pages)`,
+            message: `Analyzing document... (${currentDocumentAnalyzedPages}/${currentDocumentTotalPages} pages)`,
             etaSeconds: etaSeconds && etaSeconds > 0 ? etaSeconds : undefined,
           })
 
@@ -493,10 +527,11 @@ export async function processIndexJob(
             )
             const dbTime = Date.now() - dbStart
 
-            // Update job cost and progress
+            // Update job cost and progress (both overall and per-document)
             totalInputTokens += inputTokens
             totalOutputTokens += outputTokens
             totalCost += cost
+            currentDocumentAnalyzedPages++
 
             const jobStart = Date.now()
             const updatedJob = await indexJobs.findOneAndUpdate(
@@ -537,13 +572,16 @@ export async function processIndexJob(
                 filename,
                 current: job.progress.processedDocuments + 1,
                 total: docsToProcess.length,
+                totalPages: currentDocumentTotalPages,
+                processedPages: currentDocumentProcessedPages,
+                analyzedPages: currentDocumentAnalyzedPages,
               },
               totalDocuments: docsToProcess.length,
               processedDocuments: updatedJob?.progress.processedDocuments || job.progress.processedDocuments,
-              totalPages: allPages.length,
+              totalPages: updatedJob?.progress.totalPages || allPages.length,
               processedPages: updatedJob?.progress.processedPages || job.progress.processedPages,
               analyzedPages: updatedJob?.progress.analyzedPages || job.progress.analyzedPages,
-              message: `Analyzing document... (${updatedJob?.progress.analyzedPages || 0}/${allPages.length} pages)`,
+              message: `Analyzing document... (${currentDocumentAnalyzedPages}/${currentDocumentTotalPages} pages)`,
               etaSeconds: etaSecondsAfter && etaSecondsAfter > 0 ? etaSecondsAfter : undefined,
             })
 
