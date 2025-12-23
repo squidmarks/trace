@@ -456,22 +456,14 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
       {showPagePicker && (
         <PagePicker
           workspaceId={workspaceId}
-          onPageSelected={(page) => {
-            // Get document name from the page
-            fetch(`/api/workspaces/${workspaceId}`)
-              .then(r => r.json())
-              .then(data => {
-                const doc = data.workspace.documents?.find((d: any) => d._id === page.documentId)
-                if (doc) {
-                  setSelectedPages(prev => {
-                    // Avoid duplicates
-                    if (prev.some(sp => sp.page._id === page._id)) {
-                      return prev
-                    }
-                    return [...prev, { page, documentName: doc.name }]
-                  })
-                }
-              })
+          onPageSelected={(page, documentName) => {
+            setSelectedPages(prev => {
+              // Avoid duplicates
+              if (prev.some(sp => sp.page._id === page._id)) {
+                return prev
+              }
+              return [...prev, { page, documentName }]
+            })
           }}
           onClose={() => setShowPagePicker(false)}
         />

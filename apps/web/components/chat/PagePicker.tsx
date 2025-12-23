@@ -6,7 +6,7 @@ import type { Document, Page } from "@trace/shared"
 
 interface PagePickerProps {
   workspaceId: string
-  onPageSelected: (page: Page) => void
+  onPageSelected: (page: Page, documentName: string) => void
   onClose: () => void
 }
 
@@ -36,22 +36,22 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
     setError(null)
     try {
       console.log('[PagePicker] Loading documents for workspace:', workspaceId)
-      const response = await fetch(`/api/workspaces/${workspaceId}`)
+      const response = await fetch(`/api/workspaces/${workspaceId}/documents`)
       if (response.ok) {
         const data = await response.json()
-        console.log('[PagePicker] Documents loaded:', data.workspace.documents?.length || 0)
-        const docs = data.workspace.documents || []
+        console.log('[PagePicker] Documents loaded:', data.documents?.length || 0)
+        const docs = data.documents || []
         setDocuments(docs)
         // Auto-select first indexed document if available
         const indexedDoc = docs.find((d: Document) => d.status === 'ready')
         if (indexedDoc) {
           setSelectedDocId(indexedDoc._id)
-          console.log('[PagePicker] Auto-selected document:', indexedDoc.name)
+          console.log('[PagePicker] Auto-selected indexed document:', indexedDoc.name)
         } else if (docs.length > 0) {
           setSelectedDocId(docs[0]._id)
           console.log('[PagePicker] Auto-selected first document:', docs[0].name)
         } else {
-          setError("No documents found in workspace")
+          setError("No documents found in workspace. Please add documents first.")
         }
       } else {
         const errorText = await response.text()
@@ -108,8 +108,8 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
   }
 
   const handleAddPage = () => {
-    if (pages[currentPageIndex]) {
-      onPageSelected(pages[currentPageIndex])
+    if (pages[currentPageIndex] && selectedDoc) {
+      onPageSelected(pages[currentPageIndex], selectedDoc.name)
       // Don't close modal - allow adding multiple pages
     }
   }
