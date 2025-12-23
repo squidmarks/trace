@@ -30,3 +30,8 @@ export async function getChatSessionsCollection() {
   return db.collection("chatSessions")
 }
 
+export async function getUsersCollection() {
+  const db = await getDb()
+  return db.collection("users")
+}
+
