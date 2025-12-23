@@ -102,6 +102,7 @@ export interface Document {
   pdfHash?: string  // SHA-256 hash (optional, used for deduplication)
   pageCount?: number
   status: DocumentStatus
+  indexedAt?: Date  // When the document was last successfully indexed
   error?: string
   createdAt: Date
   updatedAt: Date

@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { AlertCircle, CheckCircle2, Sparkles, XCircle } from "lucide-react"
 
 interface IndexProgressData {
@@ -36,7 +37,7 @@ function formatEta(seconds: number): string {
   return `${minutes}m ${remainingSeconds}s`
 }
 
-export default function IndexingProgress({ progress }: IndexingProgressProps) {
+function IndexingProgressComponent({ progress }: IndexingProgressProps) {
   if (progress.phase === "error") {
     return (
       <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -78,15 +79,7 @@ export default function IndexingProgress({ progress }: IndexingProgressProps) {
     )
   }
 
-  // Processing phase
-  const percentage =
-    progress.analyzedPages && progress.totalPages && progress.analyzedPages > 0
-      ? Math.round((progress.analyzedPages / progress.totalPages) * 100)
-      : progress.processedPages && progress.totalPages
-      ? Math.round((progress.processedPages / progress.totalPages) * 100)
-      : 0
-
-  // Determine current document progress
+  // Processing phase - use current document progress
   const currentDoc = progress.currentDocument
   const docPercentage = currentDoc
     ? currentDoc.analyzedPages > 0
@@ -96,7 +89,7 @@ export default function IndexingProgress({ progress }: IndexingProgressProps) {
       : 0
     : 0
 
-  const phaseText = progress.analyzedPages && progress.analyzedPages > 0 ? "Analyzing" : "Rendering"
+  const phaseText = currentDoc?.analyzedPages && currentDoc.analyzedPages > 0 ? "Analyzing" : "Rendering"
 
   return (
     <div className="mb-6 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg shadow-lg p-5">
@@ -105,66 +98,92 @@ export default function IndexingProgress({ progress }: IndexingProgressProps) {
           <Sparkles className="animate-pulse" size={24} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-lg">Indexing Workspace</h3>
-            <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
-              {percentage}%
-            </span>
-          </div>
-
-          {/* Current Document */}
+          {/* Current Document Progress */}
           {currentDoc && (
-            <div className="mb-3 bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-2">
+            <>
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white/90 mb-0.5">
+                  <h3 className="font-semibold text-lg mb-1">
                     {phaseText} Document {currentDoc.current} of {currentDoc.total}
-                  </p>
-                  <p className="text-sm text-white truncate" title={currentDoc.filename}>
+                  </h3>
+                  <p className="text-sm text-white/90 truncate" title={currentDoc.filename}>
                     {currentDoc.filename}
                   </p>
                 </div>
-                <span className="ml-3 text-sm font-semibold text-white">{docPercentage}%</span>
+                <span className="ml-3 text-lg font-semibold text-white">{docPercentage}%</span>
               </div>
-              <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white transition-all duration-300 ease-out rounded-full"
-                  style={{
-                    width: `${Math.min(100, docPercentage)}%`,
-                  }}
-                />
+              
+              <div className="mb-2">
+                <div className="flex items-center justify-between text-sm mb-1.5">
+                  <span className="text-white/90">
+                    {currentDoc.analyzedPages > 0
+                      ? `${currentDoc.analyzedPages} / ${currentDoc.totalPages} pages analyzed`
+                      : currentDoc.processedPages > 0
+                      ? `${currentDoc.processedPages} / ${currentDoc.totalPages} pages rendered`
+                      : `0 / ${currentDoc.totalPages} pages`}
+                  </span>
+                  {progress.etaSeconds && progress.etaSeconds > 0 && (
+                    <span className="text-white/80 text-xs">
+                      ⏱️ Est. {formatEta(progress.etaSeconds)} remaining
+                    </span>
+                  )}
+                </div>
+                <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-white rounded-full shadow-sm"
+                    style={{
+                      width: `${Math.min(100, docPercentage)}%`,
+                      transition: "width 0.3s ease-out",
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            </>
           )}
-
-          {/* Overall Progress */}
-          <div>
-            <div className="flex items-center justify-between text-sm mb-1.5">
-              <span className="text-white/90">
-                Overall: {progress.processedDocuments || 0} / {progress.totalDocuments || 0} documents
-                {" • "}
-                {progress.analyzedPages && progress.analyzedPages > 0
-                  ? `${progress.analyzedPages} / ${progress.totalPages || 0} pages analyzed`
-                  : `${progress.processedPages || 0} / ${progress.totalPages || 0} pages rendered`}
-              </span>
-            </div>
-            <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white transition-all duration-300 ease-out rounded-full shadow-sm"
-                style={{
-                  width: `${Math.min(100, percentage)}%`,
-                }}
-              />
-            </div>
-            {progress.etaSeconds && progress.etaSeconds > 0 && (
-              <div className="text-xs text-white/80 mt-2 text-right">
-                ⏱️ Est. {formatEta(progress.etaSeconds)} remaining
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
   )
 }
 
+// Custom comparison to only re-render when meaningful values change
+const IndexingProgress = memo(IndexingProgressComponent, (prev, next) => {
+  // Always re-render for phase changes
+  if (prev.progress.phase !== next.progress.phase) return false
+  
+  // For error/complete phases, compare error messages
+  if (next.progress.phase === "error" && prev.progress.error !== next.progress.error) return false
+  if (next.progress.phase === "complete") return true // Don't re-render complete state
+  
+  // For processing phase, only re-render if meaningful values changed
+  const prevDoc = prev.progress.currentDocument
+  const nextDoc = next.progress.currentDocument
+  
+  if (!prevDoc && !nextDoc) return true // No change
+  if (!prevDoc || !nextDoc) return false // One is missing, re-render
+  
+  // Re-render if document changed
+  if (prevDoc.id !== nextDoc.id) return false
+  
+  // Re-render if page counts changed
+  if (prevDoc.analyzedPages !== nextDoc.analyzedPages) return false
+  if (prevDoc.processedPages !== nextDoc.processedPages) return false
+  if (prevDoc.totalPages !== nextDoc.totalPages) return false
+  
+  // Re-render if percentage changed by more than 1%
+  const prevPercentage = prevDoc.analyzedPages > 0
+    ? Math.round((prevDoc.analyzedPages / prevDoc.totalPages) * 100)
+    : Math.round((prevDoc.processedPages / prevDoc.totalPages) * 100)
+  const nextPercentage = nextDoc.analyzedPages > 0
+    ? Math.round((nextDoc.analyzedPages / nextDoc.totalPages) * 100)
+    : Math.round((nextDoc.processedPages / nextDoc.totalPages) * 100)
+  
+  if (Math.abs(prevPercentage - nextPercentage) >= 1) return false
+  
+  // Don't re-render for minor ETA fluctuations
+  return true
+})
+
+IndexingProgress.displayName = "IndexingProgress"
+
+export default IndexingProgress

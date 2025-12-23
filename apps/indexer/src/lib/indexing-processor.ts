@@ -124,6 +124,19 @@ export async function processIndexJob(
       const deleteResult = await pages.deleteMany({ workspaceId: job.workspaceId })
       logger.info(`🧹 Deleted ${deleteResult.deletedCount} existing pages for fresh re-index`)
       
+      // Clear all document indexing statuses
+      const statusClearResult = await documents.updateMany(
+        { workspaceId: job.workspaceId },
+        { 
+          $set: { 
+            status: "queued",
+            updatedAt: new Date()
+          },
+          $unset: { indexedAt: "" }
+        }
+      )
+      logger.info(`🧹 Cleared status for ${statusClearResult.modifiedCount} documents`)
+      
       await indexJobs.updateOne(
         { _id: job._id },
         { 
@@ -168,6 +181,17 @@ export async function processIndexJob(
     for (const doc of docsToProcess) {
       const docId = doc._id.toString()
       const filename = doc.filename
+
+      // Mark document as processing
+      await documents.updateOne(
+        { _id: doc._id },
+        { 
+          $set: { 
+            status: "processing",
+            updatedAt: new Date()
+          }
+        }
+      )
 
       // Per-document counters (reset for each document)
       let currentDocumentTotalPages = 0
@@ -597,6 +621,7 @@ export async function processIndexJob(
           {
             $set: {
               status: "ready",
+              indexedAt: new Date(),
               pageCount: allPages.length,
               updatedAt: new Date(),
             },
