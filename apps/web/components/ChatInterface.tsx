@@ -1,11 +1,13 @@
 "use client"
 
 import React, { useState, useRef, useEffect, useCallback } from "react"
-import { Send, Loader2, X, MessageSquare } from "lucide-react"
+import { Send, Loader2, X, MessageSquare, Plus } from "lucide-react"
 import type { ChatMessage, Citation, Page } from "@trace/shared"
 import PageViewerModal from "./PageViewerModal"
 import MessageBubble from "./chat/MessageBubble"
 import StreamingMessage from "./chat/StreamingMessage"
+import PagePicker from "./chat/PagePicker"
+import SelectedPagePill from "./chat/SelectedPagePill"
 
 interface ChatInterfaceProps {
   workspaceId: string
@@ -27,6 +29,8 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
   const [progressMessage, setProgressMessage] = useState<string>("")
   const [streamingContent, setStreamingContent] = useState<string>("")
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null)
+  const [selectedPages, setSelectedPages] = useState<Array<{ page: Page; documentName: string }>>([])
+  const [showPagePicker, setShowPagePicker] = useState(false)
   const isSendingFirstMessage = useRef(false) // Track if we're sending the first message
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -132,12 +136,18 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
     }
 
     try {
+      // Include selected page IDs in the request
+      const explicitPageIds = selectedPages.map(sp => sp.page._id.toString())
+      
       const response = await fetch(
         `/api/workspaces/${workspaceId}/chat/${sid}/messages`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: userMessage.content }),
+          body: JSON.stringify({ 
+            content: userMessage.content,
+            explicitPageIds: explicitPageIds.length > 0 ? explicitPageIds : undefined
+          }),
         }
       )
 
@@ -210,8 +220,9 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
                 }
               })
               
-              // Clear the first message flag
+              // Clear the first message flag and selected pages
               isSendingFirstMessage.current = false
+              setSelectedPages([])
               
               // Notify parent that message was sent
               onMessageSent?.()
@@ -378,6 +389,27 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
 
       {/* Input */}
       <div className="p-4 border-t">
+        {/* Selected Pages Pills */}
+        {selectedPages.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {selectedPages.map((sp, idx) => (
+              <SelectedPagePill
+                key={`${sp.page._id}-${idx}`}
+                page={sp.page}
+                documentName={sp.documentName}
+                onRemove={() => {
+                  setSelectedPages(prev => prev.filter((_, i) => i !== idx))
+                }}
+                onClick={() => {
+                  // Open page viewer for this page
+                  setModalPages([sp.page])
+                  setInitialPageId(sp.page._id.toString())
+                }}
+              />
+            ))}
+          </div>
+        )}
+        
         <div className="flex gap-2">
           <textarea
             value={input}
@@ -388,6 +420,14 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
             rows={1}
             disabled={isLoading}
           />
+          <button
+            onClick={() => setShowPagePicker(true)}
+            disabled={isLoading}
+            className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            title="Add page to chat"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
           <button
             onClick={sendMessage}
             disabled={!input.trim() || isLoading}
@@ -411,6 +451,31 @@ export default function ChatInterface({ workspaceId, sessionId, onSessionCreated
           setInitialPageId(undefined)
         }}
       />
+
+      {/* Page Picker Modal */}
+      {showPagePicker && (
+        <PagePicker
+          workspaceId={workspaceId}
+          onPageSelected={(page) => {
+            // Get document name from the page
+            fetch(`/api/workspaces/${workspaceId}`)
+              .then(r => r.json())
+              .then(data => {
+                const doc = data.workspace.documents?.find((d: any) => d._id === page.documentId)
+                if (doc) {
+                  setSelectedPages(prev => {
+                    // Avoid duplicates
+                    if (prev.some(sp => sp.page._id === page._id)) {
+                      return prev
+                    }
+                    return [...prev, { page, documentName: doc.name }]
+                  })
+                }
+              })
+          }}
+          onClose={() => setShowPagePicker(false)}
+        />
+      )}
 
       {/* Loading Overlay */}
       {isLoadingPage && (

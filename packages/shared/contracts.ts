@@ -70,7 +70,8 @@ export const createChatSessionSchema = z.object({
 })
 
 export const sendMessageSchema = z.object({
-  content: z.string().min(1).max(10000)
+  content: z.string().min(1).max(10000),
+  explicitPageIds: z.array(z.string()).optional()
 })
 
 export const citationSchema = z.object({

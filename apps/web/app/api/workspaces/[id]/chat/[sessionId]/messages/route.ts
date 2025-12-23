@@ -65,6 +65,34 @@ export async function POST(
     const workspace = await workspaces.findOne({ _id: new ObjectId(params.id) })
     const model = workspace?.config?.chat?.model || "gpt-5.2-chat-latest"
 
+    // Fetch explicit pages if provided
+    let explicitPagesContext = ""
+    if (validatedData.explicitPageIds && validatedData.explicitPageIds.length > 0) {
+      const pages = await getPagesCollection()
+      const documents = await getDocumentsCollection()
+      
+      const explicitPages = await pages.find({
+        _id: { $in: validatedData.explicitPageIds.map(id => new ObjectId(id)) },
+        workspaceId: new ObjectId(params.id)
+      }).toArray()
+      
+      // Get document names for each page
+      const explicitPagesWithDocs = await Promise.all(explicitPages.map(async (page) => {
+        const doc = await documents.findOne({ _id: page.documentId })
+        return { page, documentName: doc?.name || "Unknown" }
+      }))
+      
+      explicitPagesContext = `\n\n[EXPLICIT PAGE REFERENCES FROM USER]\nThe user has explicitly selected these pages to include in the conversation:\n${explicitPagesWithDocs.map(({ page, documentName }) => 
+        `- Page ${page.pageNumber} from "${documentName}"\n  Summary: ${page.analysis?.summary || "No summary"}\n  Topics: ${page.analysis?.topics?.join(", ") || "None"}`
+      ).join("\n")}\n[END EXPLICIT REFERENCES]\n\n`
+    }
+
+    // Augment user message with explicit page context
+    const augmentedUserMessage: ChatMessage = {
+      ...userMessage,
+      content: explicitPagesContext + userMessage.content
+    }
+
     // Create streaming response with Server-Sent Events
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
@@ -78,14 +106,37 @@ export async function POST(
         const citations: Citation[] = []
         let tokenUsage: any = null
 
+        // Add explicit pages to citations upfront
+        if (validatedData.explicitPageIds && validatedData.explicitPageIds.length > 0) {
+          const pages = await getPagesCollection()
+          const documents = await getDocumentsCollection()
+          
+          const explicitPages = await pages.find({
+            _id: { $in: validatedData.explicitPageIds.map(id => new ObjectId(id)) },
+            workspaceId: new ObjectId(params.id)
+          }).toArray()
+          
+          for (const page of explicitPages) {
+            const doc = await documents.findOne({ _id: page.documentId })
+            citations.push({
+              pageId: page._id,
+              documentId: page.documentId,
+              documentName: doc?.name || "Unknown",
+              pageNumber: page.pageNumber,
+              excerpt: page.analysis?.summary?.substring(0, 200) || "",
+            })
+          }
+        }
+
         try {
           console.log(`[Messages API] Starting chat completion for session ${params.sessionId}`)
           console.log(`[Messages API] Model: ${model}`)
           console.log(`[Messages API] Message count: ${chatSession.messages.length + 1}`)
+          console.log(`[Messages API] Explicit pages: ${validatedData.explicitPageIds?.length || 0}`)
           
           for await (const event of generateChatCompletion(
             params.id,
-            [...chatSession.messages, userMessage],
+            [...chatSession.messages, augmentedUserMessage],
             model
           )) {
             if (event.type === "content" && event.content) {
