@@ -4,6 +4,15 @@ import { AlertCircle, CheckCircle2, Sparkles, XCircle } from "lucide-react"
 
 interface IndexProgressData {
   phase: string
+  currentDocument?: {
+    id: string
+    filename: string
+    current: number
+    total: number
+    totalPages: number
+    processedPages: number
+    analyzedPages: number
+  }
   totalDocuments?: number
   processedDocuments?: number
   totalPages?: number
@@ -70,8 +79,6 @@ export default function IndexingProgress({ progress }: IndexingProgressProps) {
   }
 
   // Processing phase
-  // Two phases: rendering (fast) and analysis (slow)
-  // Show actual progress for whichever phase is active
   const percentage =
     progress.analyzedPages && progress.totalPages && progress.analyzedPages > 0
       ? Math.round((progress.analyzedPages / progress.totalPages) * 100)
@@ -79,34 +86,79 @@ export default function IndexingProgress({ progress }: IndexingProgressProps) {
       ? Math.round((progress.processedPages / progress.totalPages) * 100)
       : 0
 
+  // Determine current document progress
+  const currentDoc = progress.currentDocument
+  const docPercentage = currentDoc
+    ? currentDoc.analyzedPages > 0
+      ? Math.round((currentDoc.analyzedPages / currentDoc.totalPages) * 100)
+      : currentDoc.processedPages > 0
+      ? Math.round((currentDoc.processedPages / currentDoc.totalPages) * 100)
+      : 0
+    : 0
+
+  const phaseText = progress.analyzedPages && progress.analyzedPages > 0 ? "Analyzing" : "Rendering"
+
   return (
-    <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-      <div className="flex items-start gap-3">
-        <AlertCircle className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" size={20} />
-        <div className="flex-1">
-          <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">
-            Indexing in Progress...
-          </h3>
-          <div className="mb-2">
-            <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-              <span>
-                {progress.analyzedPages && progress.analyzedPages > 0
-                  ? `${progress.analyzedPages} / ${progress.totalPages || 0} analyzed`
-                  : `${progress.processedPages || 0} / ${progress.totalPages || 0} rendered`}
-              </span>
-              <span className="font-semibold text-blue-600 dark:text-blue-400">{percentage}%</span>
+    <div className="mb-6 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg shadow-lg p-5">
+      <div className="flex items-start gap-4">
+        <div className="mt-1">
+          <Sparkles className="animate-pulse" size={24} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-lg">Indexing Workspace</h3>
+            <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
+              {percentage}%
+            </span>
+          </div>
+
+          {/* Current Document */}
+          {currentDoc && (
+            <div className="mb-3 bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white/90 mb-0.5">
+                    {phaseText} Document {currentDoc.current} of {currentDoc.total}
+                  </p>
+                  <p className="text-sm text-white truncate" title={currentDoc.filename}>
+                    {currentDoc.filename}
+                  </p>
+                </div>
+                <span className="ml-3 text-sm font-semibold text-white">{docPercentage}%</span>
+              </div>
+              <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all duration-300 ease-out rounded-full"
+                  style={{
+                    width: `${Math.min(100, docPercentage)}%`,
+                  }}
+                />
+              </div>
             </div>
-            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          )}
+
+          {/* Overall Progress */}
+          <div>
+            <div className="flex items-center justify-between text-sm mb-1.5">
+              <span className="text-white/90">
+                Overall: {progress.processedDocuments || 0} / {progress.totalDocuments || 0} documents
+                {" • "}
+                {progress.analyzedPages && progress.analyzedPages > 0
+                  ? `${progress.analyzedPages} / ${progress.totalPages || 0} pages analyzed`
+                  : `${progress.processedPages || 0} / ${progress.totalPages || 0} pages rendered`}
+              </span>
+            </div>
+            <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
               <div
-                className="h-full bg-blue-600 dark:bg-blue-500 transition-all duration-300 ease-out rounded-full"
+                className="h-full bg-white transition-all duration-300 ease-out rounded-full shadow-sm"
                 style={{
                   width: `${Math.min(100, percentage)}%`,
                 }}
               />
             </div>
             {progress.etaSeconds && progress.etaSeconds > 0 && (
-              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 text-right">
-                Est. {formatEta(progress.etaSeconds)} remaining
+              <div className="text-xs text-white/80 mt-2 text-right">
+                ⏱️ Est. {formatEta(progress.etaSeconds)} remaining
               </div>
             )}
           </div>

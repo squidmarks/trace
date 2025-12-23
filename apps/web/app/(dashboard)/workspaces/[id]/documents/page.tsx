@@ -253,6 +253,9 @@ export default function DocumentsPage() {
             </nav>
           </div>
 
+          {/* Indexing Status Banner - Separate from documents */}
+          {indexProgress && <IndexingProgress progress={indexProgress} />}
+
           {/* Upload Documents Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">Upload Documents</h2>
@@ -313,8 +316,6 @@ export default function DocumentsPage() {
                 </div>
               )}
             </div>
-
-            {indexProgress && <IndexingProgress progress={indexProgress} />}
 
             <DocumentsList
               documents={documents}
