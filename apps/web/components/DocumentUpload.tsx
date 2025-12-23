@@ -11,76 +11,91 @@ export default function DocumentUpload({ workspaceId, onUploadComplete }: Docume
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState("")
   const [isDragging, setIsDragging] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{current: number; total: number; filename: string} | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFile = async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setError("Only PDF files are supported")
-      return
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
-      setError(`File size (${sizeMB}MB) exceeds the 10MB browser upload limit. Please use "Add from URL" for larger files.`)
-      return
+  const handleFiles = async (files: FileList) => {
+    const fileArray = Array.from(files)
+    
+    // Validate all files first
+    for (const file of fileArray) {
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        setError(`${file.name} is not a PDF file. Only PDF files are supported.`)
+        return
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+        setError(`${file.name} (${sizeMB}MB) exceeds the 10MB browser upload limit. Please use "Add from URL" for larger files.`)
+        return
+      }
     }
 
     setError("")
     setIsUploading(true)
+    
+    // Upload files sequentially
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i]
+      setUploadProgress({ current: i + 1, total: fileArray.length, filename: file.name })
+      
+      try {
+        // Convert to base64
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            const result = reader.result as string
+            const base64 = result.split(",")[1]
+            resolve(base64)
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(file)
+        })
 
-    try {
-      // Convert to base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const result = reader.result as string
-          // Remove data URL prefix
-          const base64 = result.split(",")[1]
-          resolve(base64)
+        // Upload
+        const response = await fetch(`/api/workspaces/${workspaceId}/documents`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            file: base64,
+          }),
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || "Failed to upload document")
         }
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-
-      // Upload
-      const response = await fetch(`/api/workspaces/${workspaceId}/documents`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          file: base64,
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to upload document")
+      } catch (err: any) {
+        setError(`Failed to upload ${file.name}: ${err.message}`)
+        setIsUploading(false)
+        setUploadProgress(null)
+        return
       }
-
-      onUploadComplete()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setIsUploading(false)
     }
+    
+    setIsUploading(false)
+    setUploadProgress(null)
+    onUploadComplete()
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      handleFile(file)
+    const files = e.target.files
+    if (files && files.length > 0) {
+      handleFiles(files)
     }
+    // Reset input so same files can be selected again
+    e.target.value = ''
   }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
 
-    const file = e.dataTransfer.files[0]
-    if (file) {
-      handleFile(file)
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      handleFiles(files)
     }
   }
 
@@ -109,6 +124,7 @@ export default function DocumentUpload({ workspaceId, onUploadComplete }: Docume
           ref={fileInputRef}
           type="file"
           accept=".pdf,application/pdf"
+          multiple
           onChange={handleFileSelect}
           className="hidden"
           disabled={isUploading}
@@ -117,7 +133,18 @@ export default function DocumentUpload({ workspaceId, onUploadComplete }: Docume
         {isUploading ? (
           <div className="py-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Uploading...</p>
+            {uploadProgress ? (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  Uploading {uploadProgress.current} of {uploadProgress.total}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate px-4">
+                  {uploadProgress.filename}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-gray-600 dark:text-gray-400">Uploading...</p>
+            )}
           </div>
         ) : (
           <>
@@ -135,13 +162,13 @@ export default function DocumentUpload({ workspaceId, onUploadComplete }: Docume
               />
             </svg>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Drag and drop a PDF file here, or click to select
+              Drag and drop PDF files here, or click to select
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
-              Select PDF File
+              Select PDF Files
             </button>
             <p className="mt-2 text-xs text-gray-500">
               Maximum file size: 10MB for browser uploads
