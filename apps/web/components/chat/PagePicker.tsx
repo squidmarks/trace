@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { X, Eye } from "lucide-react"
 import type { Document, Page } from "@trace/shared"
+import PageViewerModal from "../PageViewerModal"
 
 interface PagePickerProps {
   workspaceId: string
@@ -14,10 +15,11 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
   const [documents, setDocuments] = useState<Document[]>([])
   const [selectedDocId, setSelectedDocId] = useState<string>("")
   const [pages, setPages] = useState<Page[]>([])
-  const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [isLoadingDocs, setIsLoadingDocs] = useState(true)
   const [isLoadingPages, setIsLoadingPages] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [previewPages, setPreviewPages] = useState<Page[]>([])
+  const [previewInitialPageId, setPreviewInitialPageId] = useState<string | undefined>(undefined)
 
   // Load documents on mount
   useEffect(() => {
@@ -107,19 +109,24 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
     }
   }
 
-  const handleAddPage = () => {
-    if (pages[currentPageIndex] && selectedDoc) {
-      onPageSelected(pages[currentPageIndex], selectedDoc.filename)
+  const handleAddPage = (page: Page) => {
+    const doc = documents.find(d => d._id === selectedDocId)
+    if (doc) {
+      onPageSelected(page, doc.filename)
       // Don't close modal - allow adding multiple pages
     }
   }
 
-  const currentPage = pages[currentPageIndex]
+  const handlePreviewPage = (page: Page) => {
+    setPreviewPages(pages)
+    setPreviewInitialPageId(page._id.toString())
+  }
+
   const selectedDoc = documents.find(d => d._id === selectedDocId)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold">Add Page to Chat</h2>
@@ -131,7 +138,7 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
           </button>
         </div>
 
-        {/* Document Selector + Add Button */}
+        {/* Document Selector */}
         <div className="p-4 border-b flex items-center gap-3">
           <label className="text-sm font-medium whitespace-nowrap">Document:</label>
           <select
@@ -150,14 +157,6 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
               ))
             )}
           </select>
-          <button
-            onClick={handleAddPage}
-            disabled={!currentPage}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Add Page
-          </button>
         </div>
 
         {/* Error Message */}
@@ -167,52 +166,54 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
           </div>
         )}
 
-        {/* Page Viewer */}
-        <div className="flex-1 overflow-hidden flex flex-col min-h-[500px]">
+        {/* Page Thumbnails Grid */}
+        <div className="flex-1 overflow-auto p-4 bg-gray-50">
           {isLoadingPages ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center justify-center h-full">
               <div className="text-gray-500">Loading pages...</div>
             </div>
-          ) : currentPage ? (
-            <>
-              {/* Page Image */}
-              <div className="flex-1 overflow-auto bg-gray-100 p-4">
-                <div className="max-w-3xl mx-auto">
-                  <img
-                    src={`data:image/png;base64,${currentPage.imageData}`}
-                    alt={`Page ${currentPage.pageNumber}`}
-                    className="w-full border shadow-lg bg-white"
-                  />
+          ) : pages.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {pages.map((page) => (
+                <div
+                  key={page._id.toString()}
+                  className="flex flex-col gap-2 bg-white rounded-lg border shadow-sm p-3 hover:shadow-md transition-shadow"
+                >
+                  {/* Thumbnail */}
+                  <div className="relative aspect-[3/4] bg-gray-100 rounded overflow-hidden">
+                    <img
+                      src={`/api/workspaces/${workspaceId}/pages/${page._id}/thumbnail`}
+                      alt={`Page ${page.pageNumber}`}
+                      className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handlePreviewPage(page)}
+                      loading="lazy"
+                    />
+                    <button
+                      onClick={() => handlePreviewPage(page)}
+                      className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-white rounded-full shadow-sm"
+                      title="Preview page"
+                    >
+                      <Eye className="w-4 h-4 text-gray-700" />
+                    </button>
+                  </div>
+                  
+                  {/* Page Info and Add Button */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      Page {page.pageNumber}
+                    </span>
+                    <button
+                      onClick={() => handleAddPage(page)}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {/* Navigation */}
-              <div className="p-4 border-t bg-white flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
-                  disabled={currentPageIndex === 0}
-                  className="px-4 py-2 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
-
-                <span className="text-sm font-medium">
-                  Page {currentPage.pageNumber} of {selectedDoc?.pageCount || pages.length}
-                </span>
-
-                <button
-                  onClick={() => setCurrentPageIndex(prev => Math.min(pages.length - 1, prev + 1))}
-                  disabled={currentPageIndex >= pages.length - 1}
-                  className="px-4 py-2 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </>
+              ))}
+            </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center">
+            <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
               <p className="text-lg font-medium mb-2">No pages available</p>
               <p className="text-sm">
                 {documents.length === 0 
@@ -223,6 +224,16 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
           )}
         </div>
       </div>
+
+      {/* Page Viewer Modal for Preview */}
+      <PageViewerModal
+        pages={previewPages}
+        initialPageId={previewInitialPageId}
+        onClose={() => {
+          setPreviewPages([])
+          setPreviewInitialPageId(undefined)
+        }}
+      />
     </div>
   )
 }
