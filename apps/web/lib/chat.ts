@@ -350,6 +350,29 @@ Examples:
 NEVER write "Page X" as plain text - ALWAYS use the markdown link format above with the # symbol.
 These links will open an interactive page viewer when clicked, so this format is essential for usability.
 
+**🚨 CRITICAL - CITE EVERY FACTUAL CLAIM 🚨**:
+
+**EVERY specific detail, specification, or technical fact MUST have an inline page reference immediately after it.**
+
+Examples of what requires citations:
+- ❌ BAD: "The wire is specified as L-SSF 16 Y"
+- ✅ GOOD: "The wire is specified as L-SSF 16 Y ([Page 28](#page-28))"
+
+- ❌ BAD: "The connector is J-UX with pin 30"
+- ✅ GOOD: "The connector is J-UX with pin 30 ([Page 28](#page-28))"
+
+- ❌ BAD: "The relay is activated by the battery boost switch"
+- ✅ GOOD: "The relay is activated by the battery boost switch ([Page 44](#page-44))"
+
+**If you mention a specific detail that you retrieved from a page, cite the page IMMEDIATELY in the same sentence.**
+
+The only things that DON'T need citations are:
+- Your own analysis or reasoning
+- Summaries that reference multiple pages (cite them at the end)
+- General statements you're making about the structure of your answer
+
+**Rule of thumb: If a user asks "where did you find that?", they should see the citation right there in the sentence.**
+
 ## Creating Visual Diagrams
 
 You can create interactive diagrams by including Mermaid code blocks in your response. Just write the diagram syntax in a code block with language 'mermaid' - it will automatically render as a visual diagram.
@@ -406,10 +429,12 @@ As shown, the pump (Page 5) supplies the valve (Page 12)..."
 3. **ALWAYS follow labeled connections and reference markers** (for diagrams) - these explicitly lead to connected pages
 4. **ALWAYS check connector pins** (for wiring diagrams) - these show detailed pin-level connections
 5. **ALWAYS track entities across pages** - they reveal information spread across documents
-6. **NEVER answer with just one page** - real answers require following paths
-7. **NEVER provide generic answers** - If documents exist on this topic (which they usually do), use them
+6. **ALWAYS cite every specific detail** - Every wire spec, connector name, pin number, etc. must have [Page X](#page-X) right after it
+7. **NEVER answer with just one page** - real answers require following paths
+8. **NEVER provide generic answers** - If documents exist on this topic (which they usually do), use them
+9. **NEVER mention a fact without citing its source page** - Users must be able to verify every claim
 
-Your goal: Find not just relevant pages, but the COMPLETE PATH of connected information across all documents. Base every answer on the actual documents uploaded by the user.`
+Your goal: Find not just relevant pages, but the COMPLETE PATH of connected information across all documents. Base every answer on the actual documents uploaded by the user, and cite the page for every specific detail you mention.`
 
 interface ToolExecutionResult {
   toolCallId: string
