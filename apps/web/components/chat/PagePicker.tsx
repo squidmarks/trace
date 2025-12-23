@@ -46,10 +46,10 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
         const indexedDoc = docs.find((d: Document) => d.status === 'ready')
         if (indexedDoc) {
           setSelectedDocId(indexedDoc._id)
-          console.log('[PagePicker] Auto-selected indexed document:', indexedDoc.name)
+          console.log('[PagePicker] Auto-selected indexed document:', indexedDoc.filename)
         } else if (docs.length > 0) {
           setSelectedDocId(docs[0]._id)
-          console.log('[PagePicker] Auto-selected first document:', docs[0].name)
+          console.log('[PagePicker] Auto-selected first document:', docs[0].filename)
         } else {
           setError("No documents found in workspace. Please add documents first.")
         }
@@ -109,7 +109,7 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
 
   const handleAddPage = () => {
     if (pages[currentPageIndex] && selectedDoc) {
-      onPageSelected(pages[currentPageIndex], selectedDoc.name)
+      onPageSelected(pages[currentPageIndex], selectedDoc.filename)
       // Don't close modal - allow adding multiple pages
     }
   }
@@ -119,7 +119,7 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold">Add Page to Chat</h2>
@@ -145,7 +145,7 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
             ) : (
               documents.map((doc) => (
                 <option key={doc._id} value={doc._id}>
-                  {doc.name} ({doc.pageCount} pages)
+                  {doc.filename} ({doc.pageCount} pages)
                 </option>
               ))
             )}
@@ -168,7 +168,7 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
         )}
 
         {/* Page Viewer */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col min-h-[500px]">
           {isLoadingPages ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-gray-500">Loading pages...</div>
