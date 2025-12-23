@@ -178,9 +178,11 @@ export async function processIndexJob(
     let totalInputTokens = 0
     let totalOutputTokens = 0
 
-    for (const doc of docsToProcess) {
+    for (let docIdx = 0; docIdx < docsToProcess.length; docIdx++) {
+      const doc = docsToProcess[docIdx]
       const docId = doc._id.toString()
       const filename = doc.filename
+      const currentDocNumber = docIdx + 1 // 1-based for display
 
       // Mark document as processing
       await documents.updateOne(
@@ -205,14 +207,14 @@ export async function processIndexJob(
         currentDocument: {
           id: docId,
           filename,
-          current: job.progress.processedDocuments + 1,
+          current: currentDocNumber,
           total: docsToProcess.length,
           totalPages: currentDocumentTotalPages,
           processedPages: currentDocumentProcessedPages,
           analyzedPages: currentDocumentAnalyzedPages,
         },
         totalDocuments: docsToProcess.length,
-        processedDocuments: job.progress.processedDocuments,
+        processedDocuments: docIdx,
         totalPages: job.progress.totalPages || 0,
         processedPages: job.progress.processedPages || 0,
         analyzedPages: job.progress.analyzedPages || 0,
@@ -230,7 +232,7 @@ export async function processIndexJob(
         logger.info(`🔄 Resuming document: ${filename} (${existingPageCount} pages exist, ${analyzedPagesCount} analyzed)`)
       }
 
-      logger.info(`📄 Processing document ${job.progress.processedDocuments + 1}/${docsToProcess.length}: ${filename}`)
+      logger.info(`📄 Processing document ${currentDocNumber}/${docsToProcess.length}: ${filename}`)
 
       // Fetch fresh job state for accurate initial progress
       const currentJob = await indexJobs.findOne({ _id: job._id })
@@ -242,7 +244,7 @@ export async function processIndexJob(
         currentDocument: {
           id: docId,
           filename,
-          current: job.progress.processedDocuments + 1,
+          current: currentDocNumber,
           total: docsToProcess.length,
           totalPages: currentDocumentTotalPages,
           processedPages: currentDocumentProcessedPages,
@@ -284,14 +286,14 @@ export async function processIndexJob(
               currentDocument: {
                 id: docId,
                 filename,
-                current: job.progress.processedDocuments + 1,
+                current: currentDocNumber,
                 total: docsToProcess.length,
                 totalPages: currentDocumentTotalPages,
                 processedPages: currentDocumentProcessedPages,
                 analyzedPages: currentDocumentAnalyzedPages,
               },
               totalDocuments: docsToProcess.length,
-              processedDocuments: job.progress.processedDocuments,
+              processedDocuments: docIdx,
               totalPages: job.progress.totalPages || 0,
               processedPages: job.progress.processedPages || 0,
               analyzedPages: job.progress.analyzedPages || 0,
@@ -310,7 +312,7 @@ export async function processIndexJob(
             currentDocument: {
               id: docId,
               filename,
-              current: job.progress.processedDocuments + 1,
+              current: currentDocNumber,
               total: docsToProcess.length,
               totalPages: currentDocumentTotalPages,
               processedPages: currentDocumentProcessedPages,
@@ -401,14 +403,14 @@ export async function processIndexJob(
               currentDocument: {
                 id: docId,
                 filename,
-                current: job.progress.processedDocuments + 1,
+                current: currentDocNumber,
                 total: docsToProcess.length,
                 totalPages: currentDocumentTotalPages,
                 processedPages: currentDocumentProcessedPages,
                 analyzedPages: currentDocumentAnalyzedPages,
               },
               totalDocuments: docsToProcess.length,
-              processedDocuments: freshJob?.progress.processedDocuments || job.progress.processedDocuments,
+              processedDocuments: docIdx,
               totalPages: freshJob?.progress.totalPages || total,
               processedPages: freshJob?.progress.processedPages || 0,
               analyzedPages: freshJob?.progress.analyzedPages || 0,
@@ -457,14 +459,14 @@ export async function processIndexJob(
           currentDocument: {
             id: docId,
             filename,
-            current: job.progress.processedDocuments + 1,
+            current: currentDocNumber,
             total: docsToProcess.length,
             totalPages: currentDocumentTotalPages,
             processedPages: currentDocumentProcessedPages,
             analyzedPages: currentDocumentAnalyzedPages,
           },
           totalDocuments: docsToProcess.length,
-          processedDocuments: currentJobBeforeAnalysis?.progress.processedDocuments || job.progress.processedDocuments,
+          processedDocuments: docIdx,
           totalPages: currentJobBeforeAnalysis?.progress.totalPages || 0,
           processedPages: currentJobBeforeAnalysis?.progress.processedPages || 0,
           analyzedPages: currentJobBeforeAnalysis?.progress.analyzedPages || 0,
@@ -511,14 +513,14 @@ export async function processIndexJob(
             currentDocument: {
               id: docId,
               filename,
-              current: job.progress.processedDocuments + 1,
+              current: currentDocNumber,
               total: docsToProcess.length,
               totalPages: currentDocumentTotalPages,
               processedPages: currentDocumentProcessedPages,
               analyzedPages: currentDocumentAnalyzedPages,
             },
             totalDocuments: docsToProcess.length,
-            processedDocuments: preAnalysisJob?.progress.processedDocuments || job.progress.processedDocuments,
+            processedDocuments: docIdx,
             totalPages: preAnalysisJob?.progress.totalPages || allPages.length,
             processedPages: preAnalysisJob?.progress.processedPages || job.progress.processedPages,
             analyzedPages: preAnalysisJob?.progress.analyzedPages || job.progress.analyzedPages,
@@ -594,14 +596,14 @@ export async function processIndexJob(
               currentDocument: {
                 id: docId,
                 filename,
-                current: job.progress.processedDocuments + 1,
+                current: currentDocNumber,
                 total: docsToProcess.length,
                 totalPages: currentDocumentTotalPages,
                 processedPages: currentDocumentProcessedPages,
                 analyzedPages: currentDocumentAnalyzedPages,
               },
               totalDocuments: docsToProcess.length,
-              processedDocuments: updatedJob?.progress.processedDocuments || job.progress.processedDocuments,
+              processedDocuments: docIdx,
               totalPages: updatedJob?.progress.totalPages || allPages.length,
               processedPages: updatedJob?.progress.processedPages || job.progress.processedPages,
               analyzedPages: updatedJob?.progress.analyzedPages || job.progress.analyzedPages,
