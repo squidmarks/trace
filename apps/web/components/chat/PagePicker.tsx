@@ -70,7 +70,6 @@ export default function PagePicker({ workspaceId, onPageSelected, onClose }: Pag
 
   const loadPages = async (documentId: string) => {
     setIsLoadingPages(true)
-    setCurrentPageIndex(0)
     setError(null)
     try {
       console.log('[PagePicker] Loading pages for document:', documentId)

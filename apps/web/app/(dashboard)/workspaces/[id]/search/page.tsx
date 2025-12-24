@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
-import { Search, FileText, Loader2, AlertCircle, X, ZoomIn, ZoomOut, Maximize2 } from "lucide-react"
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
+import { Search, FileText, Loader2, AlertCircle } from "lucide-react"
 import WorkspaceLayout from "@/components/WorkspaceLayout"
+import PageViewerModal from "@/components/PageViewerModal"
+import type { Page } from "@trace/shared"
 
 interface SearchResult {
   _id: string
@@ -46,7 +47,8 @@ export default function SearchPage() {
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPage, setSelectedPage] = useState<SearchResult | null>(null)
+  const [viewerPages, setViewerPages] = useState<Page[]>([])
+  const [viewerInitialPageId, setViewerInitialPageId] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -79,6 +81,20 @@ export default function SearchPage() {
       setError(err.message || "Failed to search")
     } finally {
       setIsSearching(false)
+    }
+  }
+
+  const handlePageClick = async (result: SearchResult) => {
+    try {
+      // Fetch full page data
+      const response = await fetch(`/api/workspaces/${params.id}/pages/${result._id}`)
+      if (response.ok) {
+        const page: Page = await response.json()
+        setViewerPages([page])
+        setViewerInitialPageId(page._id.toString())
+      }
+    } catch (error) {
+      console.error("Error loading page:", error)
     }
   }
 
@@ -182,7 +198,7 @@ export default function SearchPage() {
               {searchResults.results.map((result) => (
                 <div
                   key={result._id}
-                  onClick={() => setSelectedPage(result)}
+                  onClick={() => handlePageClick(result)}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-500 dark:hover:border-blue-400 cursor-pointer transition bg-white dark:bg-gray-800"
                 >
                   <div className="flex gap-4">
@@ -252,126 +268,15 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Page Viewer Modal with Zoom */}
-      {selectedPage && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedPage(null)}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-start justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <div>
-                <h2 className="text-lg font-semibold mb-1">{selectedPage.document.filename}</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Page {selectedPage.pageNumber}</p>
-              </div>
-              <button
-                onClick={() => setSelectedPage(null)}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Content with Zoom */}
-            <div className="overflow-hidden max-h-[calc(90vh-8rem)]">
-              <TransformWrapper
-                initialScale={1}
-                minScale={0.5}
-                maxScale={4}
-                doubleClick={{ mode: "toggle" }}
-                wheel={{ step: 0.1 }}
-                pinch={{ step: 5 }}
-                panning={{ velocityDisabled: true }}
-              >
-                {({ zoomIn, zoomOut, resetTransform }) => (
-                  <div className="relative h-full">
-                    {/* Zoom Controls */}
-                    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2">
-                      <button
-                        onClick={() => zoomIn()}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
-                        title="Zoom In"
-                      >
-                        <ZoomIn className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => zoomOut()}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
-                        title="Zoom Out"
-                      >
-                        <ZoomOut className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => resetTransform()}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
-                        title="Reset Zoom"
-                      >
-                        <Maximize2 className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    {/* Scrollable Container */}
-                    <div className="overflow-y-auto max-h-[calc(90vh-8rem)] p-4">
-                      <TransformComponent
-                        wrapperStyle={{ width: "100%", height: "100%" }}
-                        contentStyle={{ width: "100%" }}
-                      >
-                        <img
-                          src={`data:image/jpeg;base64,${selectedPage.imageData}`}
-                          alt={`Page ${selectedPage.pageNumber}`}
-                          className="w-full rounded-lg shadow-lg mb-4 cursor-move"
-                        />
-                      </TransformComponent>
-
-                      {/* Analysis Section */}
-                      <div className="space-y-3 mt-4">
-                        <div>
-                          <h4 className="font-semibold text-sm mb-1">Summary</h4>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">{selectedPage.analysis.summary}</p>
-                        </div>
-
-                        {selectedPage.analysis.topics.length > 0 && (
-                          <div>
-                            <h4 className="font-semibold text-sm mb-1">Topics</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedPage.analysis.topics.map((topic, idx) => (
-                                <span
-                                  key={idx}
-                                  className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded"
-                                >
-                                  {topic}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedPage.analysis.entities.length > 0 && (
-                          <div>
-                            <h4 className="font-semibold text-sm mb-1">Entities</h4>
-                            <div className="space-y-1">
-                              {selectedPage.analysis.entities.map((entity, idx) => (
-                                <div key={idx} className="text-sm">
-                                  <span className="font-medium">{entity.type}:</span>{" "}
-                                  <span className="text-gray-600 dark:text-gray-400">{entity.value}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </TransformWrapper>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Page Viewer Modal */}
+      <PageViewerModal
+        pages={viewerPages}
+        initialPageId={viewerInitialPageId}
+        onClose={() => {
+          setViewerPages([])
+          setViewerInitialPageId(undefined)
+        }}
+      />
         </div>
       </div>
     </WorkspaceLayout>
