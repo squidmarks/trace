@@ -120,9 +120,10 @@ export async function processIndexJob(
       logger.info(`🔄 Resetting progress counters for fresh start`)
       
       // Delete ALL pages for this workspace to ensure clean state
-      // This prevents stale pages from remaining if indexing is aborted partway through
+      // NOTE: This is redundant with the deletion in startIndexingJob, but kept as a safety net
+      // for any edge cases where processIndexJob is called directly
       const deleteResult = await pages.deleteMany({ workspaceId: job.workspaceId })
-      logger.info(`🧹 Deleted ${deleteResult.deletedCount} existing pages for fresh re-index`)
+      logger.info(`🧹 Safety check: deleted ${deleteResult.deletedCount} pages (should be 0 if already deleted)`)
       
       // Clear all document indexing statuses
       const statusClearResult = await documents.updateMany(
@@ -749,6 +750,38 @@ export async function startIndexingJob(
     analysisDetail?: "low" | "auto" | "high"
   }
 ): Promise<void> {
+  const indexJobs = await getIndexJobsCollection()
+  const pages = await getPagesCollection()
+  
+  // Cancel any existing jobs for this workspace
+  const existingJobs = await indexJobs.find({
+    workspaceId: new ObjectId(workspaceId),
+    status: { $in: ["queued", "in-progress"] }
+  }).toArray()
+  
+  if (existingJobs.length > 0) {
+    logger.warn(`⚠️  Found ${existingJobs.length} existing job(s) for workspace ${workspaceId}, cancelling them`)
+    await indexJobs.updateMany(
+      { 
+        workspaceId: new ObjectId(workspaceId),
+        status: { $in: ["queued", "in-progress"] }
+      },
+      { 
+        $set: { 
+          status: "cancelled",
+          error: "Cancelled by new indexing request",
+          completedAt: new Date(),
+          updatedAt: new Date()
+        } 
+      }
+    )
+  }
+  
+  // Delete ALL existing pages for this workspace BEFORE creating the job
+  // This ensures a completely clean slate
+  const deleteResult = await pages.deleteMany({ workspaceId: new ObjectId(workspaceId) })
+  logger.info(`🧹 Pre-deleted ${deleteResult.deletedCount} existing pages before starting new index`)
+  
   // Create job
   const jobId = await createIndexJob(workspaceId, options?.documentIds, options)
   
