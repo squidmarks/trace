@@ -42,19 +42,23 @@ interface AIPageAnalysis {
   }>
 }
 
-const ANALYSIS_PROMPT = `Analyze this document page image and extract structured information.
+const ANALYSIS_PROMPT = `Analyze this document page image and extract structured information. BE COMPREHENSIVE AND THOROUGH.
 
 Return a JSON object with:
 1. **summary** (string): 2-3 sentence summary of the page content
-2. **topics** (string[]): 3-5 main topics/themes (lowercase, hyphenated)
-3. **entities** (array): Important named entities (people, places, parts, specs, etc.)
+2. **topics** (string[]): 5-8 main topics/themes (lowercase, hyphenated)
+3. **entities** (array): ALL visible named entities, components, parts, and specifications
    - id: unique identifier
-   - type: "person", "place", "part", "specification", "measurement", etc.
-   - label: human-readable name
-   - value: associated value if applicable (e.g., "12V" for a voltage spec)
+   - type: "component", "part", "switch", "relay", "solenoid", "breaker", "connector", "specification", "measurement", etc.
+   - label: human-readable name (e.g., "Aux Start Solenoid", "Pedal Adjust Switch", "CRT Breaker Power")
+   - value: associated value if applicable (e.g., "12V", "20A", "J-EE")
    - confidence: 0.0-1.0
 
-**FOR DIAGRAMS AND SCHEMATICS, ALSO EXTRACT:**
+**FOR DIAGRAMS AND SCHEMATICS:**
+BE EXHAUSTIVE - Identify EVERY labeled component, box, switch, relay, solenoid, breaker, connector, and piece of equipment shown.
+Look in ALL diagram boxes, tables, and sections. Don't miss anything with a label or identifier.
+
+**ALSO EXTRACT:**
 
 4. **connections** (array): Labeled connections that link to/from other pages (CRITICAL for tracing systems)
    - label: Connection identifier at diagram edge (e.g., "LP", "LLO", "TTA", "H1", "P-LINE", "MECH-A")
@@ -80,15 +84,30 @@ Return a JSON object with:
    - confidence: 0.0-1.0
 
 **CRITICAL INSTRUCTIONS FOR DIAGRAMS:**
+
+**COMPONENT IDENTIFICATION (BE EXHAUSTIVE):**
+- Scan EVERY box, section, and area of the diagram
+- Identify ALL labeled components: switches, relays, solenoids, breakers, connectors, sensors, motors, etc.
+- Include component identifiers (e.g., "J-EE", "K-relay", "S1")
+- List ALL equipment shown in wiring tables and component lists
+- Capture component specifications and ratings (e.g., "20A breaker", "12VDC relay")
+- Don't skip components even if they seem minor - capture EVERYTHING with a label
+
+**CONNECTION IDENTIFICATION:**
 - Look at the EDGES of diagrams for connection labels (LP, LLO, TTA, H1, P-LINE, etc.) - these link to other pages!
-- Look for shapes with numbers/letters inside (△1, △2, ○A, etc.) - these are cross-references!
-- Look for connector boxes with pin details and specifications
 - For wiring: specifications follow patterns like [letter]-[code] [gauge] [color] (e.g., "L-SSF 16 Y")
 - For hydraulic: look for line sizes and types (e.g., "3/8 pressure line", "1/2 return")
 - For mechanical: look for shaft sizes, linkage types (e.g., "5mm shaft", "cable A")
-- Pay special attention to labeled connections entering/leaving the diagram boundaries
+- Identify which components each edge connection links to
 
-Focus on technical accuracy and extracting actionable information. For diagrams and schematics, identify components, their relationships, AND the linking information that connects this page to others.
+**CROSS-REFERENCE IDENTIFICATION:**
+- Look for shapes with numbers/letters inside (△1, △2, ○A, etc.) - these are cross-references!
+- Look for connector boxes with pin details and specifications
+- Note any "SEE PAGE X" or "TO PAGE Y" references
+
+**BE THOROUGH:** This is technical documentation - every component, connection, and reference matters for troubleshooting and system tracing. Extract ALL visible information, not just the obvious or prominent items.
+
+Focus on technical accuracy and extracting actionable information. For diagrams and schematics, identify ALL components, their relationships, AND the linking information that connects this page to others.
 
 Return ONLY valid JSON, no markdown formatting.`
 
@@ -136,7 +155,7 @@ export async function analyzePage(
           ],
         },
       ],
-      max_tokens: 3000, // Increased for additional linking metadata
+      max_tokens: 4000, // Increased for comprehensive component extraction
       temperature: 0.1, // Low temperature for consistency
       response_format: { type: "json_object" },
     })
@@ -156,7 +175,6 @@ export async function analyzePage(
 
     // Ensure arrays exist
     aiAnalysis.entities = aiAnalysis.entities || []
-    aiAnalysis.relations = aiAnalysis.relations || []
     aiAnalysis.connections = aiAnalysis.connections || []
     aiAnalysis.referenceMarkers = aiAnalysis.referenceMarkers || []
     aiAnalysis.connectorPins = aiAnalysis.connectorPins || []
@@ -173,7 +191,7 @@ export async function analyzePage(
       })),
       confidence: 0.85, // Overall confidence score
       modelVersion: "gpt-4o",
-      promptVersion: "v2.1", // Updated version: removed relations, focus on linking metadata
+      promptVersion: "v2.2", // Updated version: aggressive comprehensive component extraction
       analyzedAt: new Date(),
     }
 
