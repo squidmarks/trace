@@ -52,21 +52,22 @@ export interface IndexProgress {
 }
 
 export interface WorkspaceConfig {
-  indexing: {
-    renderDpi: 100 | 150 | 200          // Image resolution for PDF rendering
-    renderQuality: 75 | 85 | 95          // JPEG quality (1-100)
-    analysisModel: string                // OpenAI model for page analysis
-    analysisTemperature: number          // AI temperature (0.0-1.0)
-    analysisDetail: "low" | "auto" | "high"  // Vision API detail level
+  indexing?: {
+    renderDpi?: 100 | 150 | 200 | 300    // Image resolution for PDF rendering
+    renderQuality?: 75 | 85 | 95         // JPEG quality (1-100)
+    analysisModel?: string               // OpenAI model for page analysis
+    analysisTemperature?: number         // AI temperature (0.0-1.0)
+    analysisDetail?: "low" | "auto" | "high"  // Vision API detail level
+    customAnalysisPrompt?: string        // Custom prompt override for page analysis
   }
   search?: {
-    maxResults: number                   // Max search results to return
-    minConfidence: number                // Min confidence threshold (0.0-1.0)
+    maxResults?: number                  // Max search results to return
+    minConfidence?: number               // Min confidence threshold (0.0-1.0)
   }
   chat?: {
-    model: string                        // OpenAI model for chat
-    temperature: number                  // AI temperature (0.0-1.0)
-    maxTokens: number                    // Max response tokens
+    model?: string                       // OpenAI model for chat
+    maxTokens?: number                   // Max response tokens
+    customSystemPrompt?: string          // Custom system prompt override for chat
   }
 }
 
@@ -343,6 +344,7 @@ export interface IndexJob {
   modelConfig: {
     analysis: string // Model name from config/models.json
     analysisDetail: "low" | "auto" | "high" // Vision API detail level
+    customAnalysisPrompt?: string // Custom prompt override
     embeddings?: string
   }
   startedAt: Date

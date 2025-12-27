@@ -16,9 +16,30 @@ export const createWorkspaceSchema = z.object({
   description: z.string().max(500).optional()
 })
 
+export const workspaceConfigSchema = z.object({
+  indexing: z.object({
+    renderDpi: z.union([z.literal(100), z.literal(150), z.literal(200), z.literal(300)]).optional(),
+    renderQuality: z.union([z.literal(75), z.literal(85), z.literal(95)]).optional(),
+    analysisModel: z.string().optional(),
+    analysisTemperature: z.number().min(0).max(1).optional(),
+    analysisDetail: z.enum(["low", "auto", "high"]).optional(),
+    customAnalysisPrompt: z.string().optional()
+  }).optional(),
+  search: z.object({
+    maxResults: z.number().int().min(5).max(100).optional(),
+    minConfidence: z.number().min(0).max(1).optional()
+  }).optional(),
+  chat: z.object({
+    model: z.string().optional(),
+    maxTokens: z.number().int().min(1000).max(16000).optional(),
+    customSystemPrompt: z.string().optional()
+  }).optional()
+}).optional()
+
 export const updateWorkspaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional()
+  description: z.string().max(500).optional(),
+  config: workspaceConfigSchema
 })
 
 // ============================================================================

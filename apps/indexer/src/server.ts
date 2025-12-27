@@ -157,16 +157,22 @@ io.on("connection", (socket) => {
         return
       }
 
+      // Fetch workspace to get config
+      const { getWorkspacesCollection } = await import("./lib/db.js")
+      const workspaces = await getWorkspacesCollection()
+      const workspace = await workspaces.findOne({ _id: new ObjectId(workspaceId) })
+
       // Import startIndexingJob dynamically to avoid circular dependency
       const { startIndexingJob } = await import("./lib/indexing-processor.js")
       
-      // Start indexing job
+      // Start indexing job with workspace config if available
       startIndexingJob(workspaceId, io, {
         documentIds,
-        renderDpi: params?.renderDpi,
-        renderQuality: params?.renderQuality,
-        analysisModel: params?.analysisModel,
-        analysisDetail: params?.analysisDetail,
+        renderDpi: params?.renderDpi || workspace?.config?.indexing?.renderDpi,
+        renderQuality: params?.renderQuality || workspace?.config?.indexing?.renderQuality,
+        analysisModel: params?.analysisModel || workspace?.config?.indexing?.analysisModel,
+        analysisDetail: params?.analysisDetail || workspace?.config?.indexing?.analysisDetail,
+        customAnalysisPrompt: workspace?.config?.indexing?.customAnalysisPrompt,
       }).catch((error) => {
         logger.error(`❌ Indexing job failed for workspace ${workspaceId}:`, error)
       })

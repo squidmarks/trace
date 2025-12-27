@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getWorkspaceRole } from "@/lib/permissions"
-import { getChatSessionsCollection, getPagesCollection, getDocumentsCollection } from "@/lib/db"
+import { getChatSessionsCollection, getPagesCollection, getDocumentsCollection, getWorkspacesCollection } from "@/lib/db"
 import { generateChatCompletion } from "@/lib/chat"
 import { ObjectId } from "mongodb"
 import { sendMessageSchema } from "@trace/shared"
@@ -134,10 +134,17 @@ export async function POST(
           console.log(`[Messages API] Message count: ${chatSession.messages.length + 1}`)
           console.log(`[Messages API] Explicit pages: ${validatedData.explicitPageIds?.length || 0}`)
           
+          // Get custom system prompt from workspace config if available
+          const customSystemPrompt = workspace?.config?.chat?.customSystemPrompt
+          if (customSystemPrompt) {
+            console.log(`[Messages API] Using custom system prompt (${customSystemPrompt.length} characters)`)
+          }
+          
           for await (const event of generateChatCompletion(
             params.id,
             [...chatSession.messages, augmentedUserMessage],
-            model
+            model,
+            customSystemPrompt
           )) {
             if (event.type === "content" && event.content) {
               fullContent += event.content
@@ -253,7 +260,20 @@ export async function POST(
           console.error("[Messages API] Error during streaming:", error)
           console.error("[Messages API] Error stack:", error.stack)
           console.error("[Messages API] Error name:", error.name)
-          sendEvent({ type: "error", error: error.message || "Unknown error during streaming" })
+          
+          // Format error message for user
+          let userErrorMessage = "An error occurred while processing your message."
+          if (error.message?.includes("temperature")) {
+            userErrorMessage = "Model configuration error: " + error.message
+          } else if (error.message?.includes("rate limit")) {
+            userErrorMessage = "Rate limit exceeded. Please wait a moment and try again."
+          } else if (error.message?.includes("timeout")) {
+            userErrorMessage = "Request timed out. Please try again."
+          } else if (error.message) {
+            userErrorMessage = error.message
+          }
+          
+          sendEvent({ type: "error", error: userErrorMessage })
           controller.close()
         }
       },

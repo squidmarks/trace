@@ -18,6 +18,7 @@ export async function createIndexJob(
     renderQuality?: number
     analysisModel?: string
     analysisDetail?: "low" | "auto" | "high"
+    customAnalysisPrompt?: string
   }
 ): Promise<string> {
   const indexJobs = await getIndexJobsCollection()
@@ -43,6 +44,7 @@ export async function createIndexJob(
     modelConfig: {
       analysis: options?.analysisModel || process.env.ANALYSIS_MODEL || "gpt-4o-mini",
       analysisDetail: options?.analysisDetail || "auto",
+      customAnalysisPrompt: options?.customAnalysisPrompt,
     },
     startedAt: new Date(),
     createdAt: new Date(),
@@ -52,6 +54,9 @@ export async function createIndexJob(
   const result = await indexJobs.insertOne(job as IndexJob)
   logger.info(`📋 Created index job: ${result.insertedId} for workspace: ${workspaceId}`)
   logger.info(`   📊 Settings: DPI=${job.renderDpi}, Quality=${job.renderQuality}, Model=${job.modelConfig.analysis}, Detail=${job.modelConfig.analysisDetail}`)
+  if (options?.customAnalysisPrompt) {
+    logger.info(`   📝 Using custom analysis prompt (${options.customAnalysisPrompt.length} characters)`)
+  }
   
   return result.insertedId.toString()
 }
@@ -537,7 +542,8 @@ export async function processIndexJob(
               page.pageNumber,
               filename,
               job.modelConfig.analysis,
-              job.modelConfig.analysisDetail
+              job.modelConfig.analysisDetail,
+              job.modelConfig.customAnalysisPrompt
             )
             const analysisTime = Date.now() - analysisStart
 
@@ -748,6 +754,7 @@ export async function startIndexingJob(
     renderQuality?: number
     analysisModel?: string
     analysisDetail?: "low" | "auto" | "high"
+    customAnalysisPrompt?: string
   }
 ): Promise<void> {
   const indexJobs = await getIndexJobsCollection()

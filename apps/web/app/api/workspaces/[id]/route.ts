@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { ObjectId } from "mongodb"
 import { authOptions } from "@/lib/auth"
-import { getWorkspacesCollection } from "@/lib/db"
+import { getWorkspacesCollection, getDocumentsCollection, getPagesCollection, getChatSessionsCollection } from "@/lib/db"
 import { getWorkspaceRole, requireOwnerAccess } from "@/lib/permissions"
 import type { UpdateWorkspaceRequest } from "@trace/shared"
 
@@ -96,6 +96,10 @@ export async function PATCH(
       updateFields.description = body.description.trim()
     }
 
+    if (body.config !== undefined) {
+      updateFields.config = body.config
+    }
+
     const result = await workspaces.findOneAndUpdate(
       { _id: new ObjectId(params.id) },
       { $set: updateFields },
@@ -157,16 +161,38 @@ export async function DELETE(
 
     const workspaces = await getWorkspacesCollection()
     
+    // Cascade delete: remove all associated data before deleting workspace
+    const workspaceObjId = new ObjectId(params.id)
+    
+    try {
+      const pages = await getPagesCollection()
+      const documents = await getDocumentsCollection()
+      const chatSessions = await getChatSessionsCollection()
+      
+      // Delete in order: pages -> documents -> chat sessions -> workspace
+      const pagesResult = await pages.deleteMany({ workspaceId: workspaceObjId })
+      console.log(`Deleted ${pagesResult.deletedCount} pages for workspace ${params.id}`)
+      
+      const docsResult = await documents.deleteMany({ workspaceId: workspaceObjId })
+      console.log(`Deleted ${docsResult.deletedCount} documents for workspace ${params.id}`)
+      
+      const chatsResult = await chatSessions.deleteMany({ workspaceId: workspaceObjId })
+      console.log(`Deleted ${chatsResult.deletedCount} chat sessions for workspace ${params.id}`)
+      
+    } catch (error) {
+      console.error("Error during cascade delete:", error)
+      // Continue with workspace deletion even if cascade fails
+    }
+    
     const result = await workspaces.deleteOne({
-      _id: new ObjectId(params.id),
+      _id: workspaceObjId,
     })
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
 
-    // TODO: In Phase 2+, also delete associated documents, pages, ontology, chat sessions
-
+    console.log(`Successfully deleted workspace ${params.id} and all associated data`)
     return new NextResponse(null, { status: 204 })
   } catch (error: any) {
     console.error("Error deleting workspace:", error)

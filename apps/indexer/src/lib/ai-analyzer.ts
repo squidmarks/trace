@@ -42,23 +42,27 @@ interface AIPageAnalysis {
   }>
 }
 
-const ANALYSIS_PROMPT = `Analyze this document page image and extract structured information. BE COMPREHENSIVE AND THOROUGH.
+const ANALYSIS_PROMPT = `You are analyzing technical wiring diagrams. Your job is to extract EVERY component, connection, and piece of information visible on the page. Missing information can lead to system failures.
+
+**SYSTEMATIC SCANNING APPROACH:**
+1. Divide the page into grid sections (top-left, top-center, top-right, middle-left, etc.)
+2. In EACH section, identify EVERY box, label, component, and wire
+3. Don't skip anything - even if it seems minor or redundant
+4. Look for: relays, switches, solenoids, breakers, fuses, connectors, inverters, chargers, batteries, motors, sensors
+5. Capture component ratings (12V, 20A, 30A, etc.)
+6. List ALL wire specifications (gauge, color codes)
 
 Return a JSON object with:
-1. **summary** (string): 2-3 sentence summary of the page content
-2. **topics** (string[]): 5-8 main topics/themes (lowercase, hyphenated)
-3. **entities** (array): ALL visible named entities, components, parts, and specifications
+1. **summary** (string): 2-3 sentence summary
+2. **topics** (string[]): 8-12 topics covering ALL systems shown (lowercase, hyphenated)
+3. **entities** (array): MINIMUM 20-30 entities for a typical wiring diagram
    - id: unique identifier
-   - type: "component", "part", "switch", "relay", "solenoid", "breaker", "connector", "specification", "measurement", etc.
-   - label: human-readable name (e.g., "Aux Start Solenoid", "Pedal Adjust Switch", "CRT Breaker Power")
-   - value: associated value if applicable (e.g., "12V", "20A", "J-EE")
+   - type: "relay", "switch", "solenoid", "breaker", "fuse", "connector", "inverter", "charger", "battery", "motor", "sensor", "wire", "cable", "specification"
+   - label: Exact name as shown (e.g., "Battery Disconnect Relay", "Inverter Charger", "Generator Relay", "D1 Circuit Breaker")
+   - value: Rating/spec (e.g., "12VDC", "30A", "J-EE connector", "16 GA RED")
    - confidence: 0.0-1.0
 
-**FOR DIAGRAMS AND SCHEMATICS:**
-BE EXHAUSTIVE - Identify EVERY labeled component, box, switch, relay, solenoid, breaker, connector, and piece of equipment shown.
-Look in ALL diagram boxes, tables, and sections. Don't miss anything with a label or identifier.
-
-**ALSO EXTRACT:**
+**CRITICAL - SCAN EVERY DIAGRAM SECTION:**
 
 4. **connections** (array): Labeled connections that link to/from other pages (CRITICAL for tracing systems)
    - label: Connection identifier at diagram edge (e.g., "LP", "LLO", "TTA", "H1", "P-LINE", "MECH-A")
@@ -83,31 +87,65 @@ Look in ALL diagram boxes, tables, and sections. Don't miss anything with a labe
    - connectedTo: What this pin connects to
    - confidence: 0.0-1.0
 
-**CRITICAL INSTRUCTIONS FOR DIAGRAMS:**
+**COMPONENT IDENTIFICATION - SCAN METHODICALLY:**
 
-**COMPONENT IDENTIFICATION (BE EXHAUSTIVE):**
-- Scan EVERY box, section, and area of the diagram
-- Identify ALL labeled components: switches, relays, solenoids, breakers, connectors, sensors, motors, etc.
-- Include component identifiers (e.g., "J-EE", "K-relay", "S1")
-- List ALL equipment shown in wiring tables and component lists
-- Capture component specifications and ratings (e.g., "20A breaker", "12VDC relay")
-- Don't skip components even if they seem minor - capture EVERYTHING with a label
+**Common Components in Wiring Diagrams (find ALL of these):**
+- **Power Components**: Batteries, inverters, chargers, generators, alternators, power supplies
+- **Switching**: Relays (with IDs like K1, K2), contactors, solenoids (with names like "Aux Start Solenoid")
+- **Protection**: Circuit breakers (often labeled D1, D2, etc. or CB1, CB2), fuses (with amp ratings)
+- **Switches**: Toggle switches, push buttons, selector switches (labeled by function)
+- **Connectors**: Labeled J-XX, P-XX, or by function (e.g., "Dash Pod Connector", "Chassis Connector")
+- **Cables/Harnesses**: Any labeled wire bundles or cable assemblies
+- **Other**: Resistors, diodes, LEDs, indicators, sensors, transducers
 
-**CONNECTION IDENTIFICATION:**
-- Look at the EDGES of diagrams for connection labels (LP, LLO, TTA, H1, P-LINE, etc.) - these link to other pages!
-- For wiring: specifications follow patterns like [letter]-[code] [gauge] [color] (e.g., "L-SSF 16 Y")
-- For hydraulic: look for line sizes and types (e.g., "3/8 pressure line", "1/2 return")
-- For mechanical: look for shaft sizes, linkage types (e.g., "5mm shaft", "cable A")
-- Identify which components each edge connection links to
+**For EACH component found, capture:**
+- Exact label/name from diagram
+- Component type (relay, breaker, switch, etc.)
+- Any identifier (D1, K2, J-EE, CB3, etc.)
+- Ratings/specs shown (12V, 30A, 20A breaker, etc.)
+- Location description if needed (e.g., "in power distribution box")
+
+**CONNECTION/WIRE IDENTIFICATION:**
+- **Edge Connections**: Look at ALL four edges of each diagram section for labels (LP, LLO, TTA, H1, P-LINE, etc.)
+- **Wire Specifications**: Capture EVERY wire shown with its:
+  - Gauge/size (e.g., "16", "18", "14")  
+  - Color code (e.g., "RED", "BLK", "Y" for yellow, "W" for white)
+  - Full spec format (e.g., "L-SSF 16 Y", "18 W", "16 GA RED")
+- **Wire Labels**: Common wire label formats to look for:
+  - Color abbreviations: RED, BLK, BLU, YEL/Y, GRN, WHT/W, PUR, ORG, GRY
+  - Gauge numbers: 10, 12, 14, 16, 18, 20, 22
+  - Signal names: GND, PWR, +12V, SIGNAL, DATA
+- **Connection Points**: Note what each wire/connection links TO and FROM
+- **Harness Labels**: Look for bundle/harness identifiers
 
 **CROSS-REFERENCE IDENTIFICATION:**
-- Look for shapes with numbers/letters inside (△1, △2, ○A, etc.) - these are cross-references!
-- Look for connector boxes with pin details and specifications
-- Note any "SEE PAGE X" or "TO PAGE Y" references
+- Look for geometric shapes with numbers/letters: △1, △2, ○A, ○B, □1, etc.
+- Note "SEE PAGE X", "TO PAGE Y", "REF DWG X" references
+- Capture connector detail callouts and pin assignments
+- Note any drawing/section references
 
-**BE THOROUGH:** This is technical documentation - every component, connection, and reference matters for troubleshooting and system tracing. Extract ALL visible information, not just the obvious or prominent items.
+**QUALITY CHECK BEFORE SUBMITTING:**
+- Count your entities: Typical wiring diagram should have 20-40+ entities
+- If you have < 15 entities, you missed major components - SCAN AGAIN
+- Did you capture ALL boxes with labels? ALL connectors? ALL switches/relays?
+- Did you get wire gauges and colors for visible wires?
+- Did you identify ALL breakers, fuses, and protection devices?
 
-Focus on technical accuracy and extracting actionable information. For diagrams and schematics, identify ALL components, their relationships, AND the linking information that connects this page to others.
+**EXAMPLE - What a GOOD extraction looks like:**
+For a complex diagram you should capture items like:
+- "Battery Disconnect Relay" (relay)
+- "Inverter Charger" (component)  
+- "Generator Relay K1" (relay)
+- "Circuit Breaker D1 30A" (breaker)
+- "Circuit Breaker D2 20A" (breaker)
+- "Fuse F1 15A" (fuse)
+- "J-EE Connector" (connector)
+- "Chassis Power Connector" (connector)
+- "16 GA RED wire" (wire specification)
+- "18 BLK wire" (wire specification)
+- Plus 20-30 more components...
+
+**CRITICAL:** Missing components means technicians can't troubleshoot. Extract EVERYTHING visible.
 
 Return ONLY valid JSON, no markdown formatting.`
 
@@ -125,10 +163,16 @@ export async function analyzePage(
   pageNumber: number,
   filename: string,
   modelName?: string,
-  detail: "low" | "auto" | "high" = "auto"
+  detail: "low" | "auto" | "high" = "auto",
+  customPrompt?: string
 ): Promise<{ analysis: any; inputTokens: number; outputTokens: number; cost: number }> {
   const model = getAnalysisModel(modelName)
   logger.debug(`   Analyzing page ${pageNumber} with ${model.name} (detail: ${detail})...`)
+
+  const promptToUse = customPrompt || ANALYSIS_PROMPT
+  if (customPrompt) {
+    logger.debug(`   Using custom analysis prompt (${customPrompt.length} characters)`)
+  }
 
   try {
     const response = await openai.chat.completions.create({
@@ -136,7 +180,7 @@ export async function analyzePage(
       messages: [
         {
           role: "system",
-          content: ANALYSIS_PROMPT,
+          content: promptToUse,
         },
         {
           role: "user",
@@ -155,8 +199,8 @@ export async function analyzePage(
           ],
         },
       ],
-      max_tokens: 4000, // Increased for comprehensive component extraction
-      temperature: 0.1, // Low temperature for consistency
+      max_tokens: 6000, // Increased for exhaustive component extraction (20-40+ entities)
+      temperature: 0.05, // Very low temperature for maximum consistency and thoroughness
       response_format: { type: "json_object" },
     })
 
@@ -191,7 +235,7 @@ export async function analyzePage(
       })),
       confidence: 0.85, // Overall confidence score
       modelVersion: "gpt-4o",
-      promptVersion: "v2.2", // Updated version: aggressive comprehensive component extraction
+      promptVersion: "v3.0", // Major update: systematic scanning, quality checks, 20-40+ entity target
       analyzedAt: new Date(),
     }
 
@@ -263,13 +307,15 @@ export async function analyzePage(
  * @param filename - Document filename
  * @param modelName - Model to use for analysis
  * @param onProgress - Progress callback
+ * @param customPrompt - Custom analysis prompt (optional)
  * @returns Array of analyses with cost tracking
  */
 export async function analyzePages(
   pages: Array<{ pageNumber: number; imageData: string }>,
   filename: string,
   modelName: string,
-  onProgress?: (current: number, total: number, cost: number) => void
+  onProgress?: (current: number, total: number, cost: number) => void,
+  customPrompt?: string
 ): Promise<{
   results: Array<any | null>
   totalCost: number
@@ -294,7 +340,7 @@ export async function analyzePages(
     logger.info(`   📊 Batch ${batchNum}/${totalBatches}: Analyzing pages ${i + 1}-${Math.min(i + maxConcurrent, pages.length)}...`)
     
     const batchResults = await Promise.allSettled(
-      batch.map((page) => analyzePage(page.imageData, page.pageNumber, filename, modelName))
+      batch.map((page) => analyzePage(page.imageData, page.pageNumber, filename, modelName, "auto", customPrompt))
     )
 
     for (const result of batchResults) {

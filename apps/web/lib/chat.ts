@@ -479,7 +479,8 @@ async function executeTool(
 export async function* generateChatCompletion(
   workspaceId: string,
   messages: ChatMessage[],
-  model: string = "gpt-5.2-chat-latest" // Latest GPT-5.2 with expert-level reasoning
+  model: string = "gpt-5.2-chat-latest", // Latest GPT-5.2 with expert-level reasoning
+  customSystemPrompt?: string
 ): AsyncGenerator<{
   type: "content" | "toolCall" | "toolResult" | "done"
   content?: string
@@ -488,9 +489,12 @@ export async function* generateChatCompletion(
   finishReason?: string
   usage?: { promptTokens: number; completionTokens: number; totalTokens: number }
 }> {
+  // Use custom system prompt if provided, otherwise use default
+  const systemPrompt = customSystemPrompt || SYSTEM_PROMPT
+  
   // Convert our message format to OpenAI format
   const openaiMessages: any[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemPrompt },
     ...messages.map((msg) => {
       // User and assistant messages
       if (msg.role === "user" || msg.role === "system") {
@@ -544,14 +548,14 @@ export async function* generateChatCompletion(
       }
     })
 
-    // Call OpenAI with streaming
+    // Call OpenAI with streaming (using model defaults for temperature)
     const stream = await openai.chat.completions.create({
       model,
       messages: openaiMessages,
       tools,
       tool_choice: "auto",
       stream: true,
-      temperature: 0.3, // Lower temperature for more focused, analytical responses
+      // Using model default temperature for all models
     })
     
     console.log(`[Chat] Stream created for iteration ${iteration}`)

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
-import { Search, FileText, Loader2, AlertCircle } from "lucide-react"
+import { Search, FileText, Settings, Loader2, AlertCircle } from "lucide-react"
 import WorkspaceLayout from "@/components/WorkspaceLayout"
 import PageViewerModal from "@/components/PageViewerModal"
 import type { Page } from "@trace/shared"
@@ -129,6 +129,15 @@ export default function SearchPage() {
               <div className="flex items-center gap-2">
                 <Search size={18} />
                 Search
+              </div>
+            </Link>
+            <Link
+              href={`/workspaces/${params.id}/settings`}
+              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              <div className="flex items-center gap-2">
+                <Settings size={18} />
+                Settings
               </div>
             </Link>
           </nav>
