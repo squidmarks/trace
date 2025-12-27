@@ -111,6 +111,16 @@ export default function DocumentsPage() {
     }
   }
 
+  const handleReindexDocument = (documentId: string) => {
+    console.log(`Re-indexing document: ${documentId}`)
+    events.emit("document:reindex", { 
+      workspaceId: params.id, 
+      documentId 
+    })
+    // Refresh documents to show updated status
+    fetchDocuments()
+  }
+
   const handleStartIndex = () => {
     try {
       console.log("Starting index for workspace:", params.id)
@@ -331,6 +341,7 @@ export default function DocumentsPage() {
               role={role}
               workspaceId={params.id as string}
               onDelete={handleDeleteDocument}
+              onReindex={handleReindexDocument}
             />
           </div>
 

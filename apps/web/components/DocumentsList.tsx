@@ -1,15 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, Link as LinkIcon, CheckCircle2, Clock, AlertCircle, Loader2 } from "lucide-react"
+import { FileText, Link as LinkIcon, CheckCircle2, Clock, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import ConfirmButton from "./ConfirmButton"
 import PageViewerModal from "./PageViewerModal"
+import { useEvents } from "@/contexts/EventContext"
 import type { Document as TraceDocument, Role, Page } from "@trace/shared"
 
 interface DocumentsListProps {
   documents: TraceDocument[]
   role: Role
   onDelete: (documentId: string) => Promise<void>
+  onReindex: (documentId: string) => void
   workspaceId: string
 }
 
@@ -76,13 +78,15 @@ function DocumentItem({
   doc, 
   role, 
   workspaceId, 
-  onDelete, 
+  onDelete,
+  onReindex,
   onPageClick 
 }: { 
   doc: TraceDocument
   role: Role
   workspaceId: string
   onDelete: (documentId: string) => Promise<void>
+  onReindex: (documentId: string) => void
   onPageClick: (pageId: string, allPageIds: string[]) => void
 }) {
   const [pages, setPages] = useState<PageSummary[]>([])
@@ -139,13 +143,23 @@ function DocumentItem({
         </div>
 
         {role === "owner" && (
-          <ConfirmButton
-            onConfirm={() => onDelete(doc._id.toString())}
-            confirmText="Delete document?"
-            className="px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
-          >
-            Delete
-          </ConfirmButton>
+          <div className="flex items-center gap-2">
+            <ConfirmButton
+              onConfirm={() => onReindex(doc._id.toString())}
+              confirmText="Re-index document?"
+              className="px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-1"
+            >
+              <RefreshCw size={14} />
+              Re-index
+            </ConfirmButton>
+            <ConfirmButton
+              onConfirm={() => onDelete(doc._id.toString())}
+              confirmText="Delete document?"
+              className="px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
+            >
+              Delete
+            </ConfirmButton>
+          </div>
         )}
       </div>
 
@@ -193,7 +207,7 @@ function DocumentItem({
   )
 }
 
-export default function DocumentsList({ documents, role, onDelete, workspaceId }: DocumentsListProps) {
+export default function DocumentsList({ documents, role, onDelete, onReindex, workspaceId }: DocumentsListProps) {
   const [modalPages, setModalPages] = useState<Page[]>([])
   const [initialPageId, setInitialPageId] = useState<string | undefined>(undefined)
   const [isLoadingPages, setIsLoadingPages] = useState(false)
@@ -239,6 +253,7 @@ export default function DocumentsList({ documents, role, onDelete, workspaceId }
             role={role}
             workspaceId={workspaceId}
             onDelete={onDelete}
+            onReindex={onReindex}
             onPageClick={handlePageClick}
           />
         ))}

@@ -186,6 +186,58 @@ io.on("connection", (socket) => {
     }
   })
 
+  // Handle single document re-index request
+  socket.on("document:reindex", async ({ workspaceId, documentId }) => {
+    logger.socket(`🔄 Document re-index request: workspace=${workspaceId}, document=${documentId}, user=${userId}`)
+    
+    try {
+      // Verify user has access to workspace
+      const hasAccess = await verifyWorkspaceAccess(workspaceId, userId)
+
+      if (!hasAccess) {
+        logger.warn(`🚫 Access denied for document re-index: user=${userId}, workspace=${workspaceId}`)
+        socket.emit("error", { message: "Access denied to workspace" })
+        return
+      }
+
+      // Delete existing pages for this document
+      const { getPagesCollection } = await import("./lib/db.js")
+      const pages = await getPagesCollection()
+      const deleteResult = await pages.deleteMany({ 
+        documentId: new ObjectId(documentId),
+        workspaceId: new ObjectId(workspaceId)
+      })
+      logger.info(`🧹 Deleted ${deleteResult.deletedCount} existing pages for document ${documentId}`)
+
+      // Fetch workspace to get config
+      const { getWorkspacesCollection } = await import("./lib/db.js")
+      const workspaces = await getWorkspacesCollection()
+      const workspace = await workspaces.findOne({ _id: new ObjectId(workspaceId) })
+
+      // Import startIndexingJob dynamically to avoid circular dependency
+      const { startIndexingJob } = await import("./lib/indexing-processor.js")
+      
+      // Start indexing job for single document with workspace config
+      startIndexingJob(workspaceId, io, {
+        documentIds: [documentId], // Re-index only this document
+        renderDpi: workspace?.config?.indexing?.renderDpi,
+        renderQuality: workspace?.config?.indexing?.renderQuality,
+        analysisModel: workspace?.config?.indexing?.analysisModel,
+        analysisDetail: workspace?.config?.indexing?.analysisDetail,
+        customAnalysisPrompt: workspace?.config?.indexing?.customAnalysisPrompt,
+      }).catch((error) => {
+        logger.error(`❌ Document re-index failed for ${documentId}:`, error)
+      })
+
+      // Confirm start
+      socket.emit("document:reindex:started", { workspaceId, documentId })
+      logger.socket(`✅ Document re-index started: document=${documentId}`)
+    } catch (error: any) {
+      logger.error("❌ Error starting document re-index:", error)
+      socket.emit("error", { message: error.message || "Failed to start document re-index" })
+    }
+  })
+
   // Handle index abort request
   socket.on("index:abort", async ({ workspaceId }) => {
     logger.socket(`🛑 Index abort request: workspace=${workspaceId}, user=${userId}`)
