@@ -99,7 +99,7 @@ function IndexingProgressComponent({ progress }: IndexingProgressProps) {
         </div>
         <div className="flex-1 min-w-0">
           {/* Current Document Progress */}
-          {currentDoc && (
+          {currentDoc ? (
             <>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex-1 min-w-0">
@@ -139,6 +139,11 @@ function IndexingProgressComponent({ progress }: IndexingProgressProps) {
                 </div>
               </div>
             </>
+          ) : (
+            <div>
+              <h3 className="font-semibold text-lg mb-1">Indexing in Progress</h3>
+              <p className="text-sm text-white/80">Waiting for indexer status...</p>
+            </div>
           )}
         </div>
       </div>

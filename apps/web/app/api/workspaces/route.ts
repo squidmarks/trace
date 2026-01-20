@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 import { ObjectId } from "mongodb"
-import { authOptions } from "@/lib/auth"
 import { getWorkspacesCollection } from "@/lib/db"
+import { getActiveSession } from "@/lib/auth-helpers"
 import type { CreateWorkspaceRequest } from "@trace/shared"
 
 // GET /api/workspaces - List user's workspaces
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getActiveSession()
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -47,7 +46,7 @@ export async function GET() {
 // POST /api/workspaces - Create new workspace
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getActiveSession()
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

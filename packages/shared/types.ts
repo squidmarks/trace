@@ -17,6 +17,7 @@ export interface User {
   email: string
   name: string
   avatar?: string
+  isActive: boolean  // Whether the account has been activated by an admin
   createdAt: Date
   updatedAt: Date
 }

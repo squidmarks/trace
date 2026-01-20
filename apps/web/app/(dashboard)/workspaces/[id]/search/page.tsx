@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
-import Link from "next/link"
-import { Search, FileText, Settings, Loader2, AlertCircle } from "lucide-react"
-import WorkspaceLayout from "@/components/WorkspaceLayout"
+import { Search, Loader2, AlertCircle } from "lucide-react"
 import PageViewerModal from "@/components/PageViewerModal"
 import type { Page } from "@trace/shared"
 
@@ -107,42 +105,7 @@ export default function SearchPage() {
   }
 
   return (
-    <WorkspaceLayout>
-      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-          {/* Tab Navigation */}
-        <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-          <nav className="-mb-px flex space-x-8">
-            <Link
-              href={`/workspaces/${params.id}/documents`}
-              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-            >
-              <div className="flex items-center gap-2">
-                <FileText size={18} />
-                Documents
-              </div>
-            </Link>
-            <Link
-              href={`/workspaces/${params.id}/search`}
-              className="border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600 dark:text-blue-400"
-            >
-              <div className="flex items-center gap-2">
-                <Search size={18} />
-                Search
-              </div>
-            </Link>
-            <Link
-              href={`/workspaces/${params.id}/settings`}
-              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-            >
-              <div className="flex items-center gap-2">
-                <Settings size={18} />
-                Settings
-              </div>
-            </Link>
-          </nav>
-        </div>
-
+    <>
       {/* Search Form */}
       <form onSubmit={handleSearch} className="mb-8">
         <div className="flex gap-3">
@@ -286,9 +249,7 @@ export default function SearchPage() {
           setViewerInitialPageId(undefined)
         }}
       />
-        </div>
-      </div>
-    </WorkspaceLayout>
+    </>
   )
 }
 

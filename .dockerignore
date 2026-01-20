@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.next
+.env.local
+.env*.local
+dist
+build
+*.log
+.git
+.gitignore
+README.md
+docs
+scripts
+.cursor
+.vscode
+*.md

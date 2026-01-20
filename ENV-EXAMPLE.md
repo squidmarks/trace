@@ -18,7 +18,7 @@ INDEXER_SERVICE_TOKEN=your-shared-secret-token-between-web-and-indexer
 OPENAI_API_KEY=sk-your-openai-api-key-here
 
 # Admin Configuration
-# This email will receive access requests and the user will be auto-created with admin role
+# This email will be automatically activated when signing in (bypasses approval requirement)
 ADMIN_EMAIL=admin@example.com
 
 # Postmark Email Service
@@ -52,8 +52,8 @@ openssl rand -base64 32
 
 ### 5. Admin Email
 - Use your email address
-- This email will receive access requests
-- An admin account will be auto-created for this email
+- This email will be automatically activated when signing in
+- Bypasses the account approval requirement
 
 ### 6. Postmark
 - Sign up at https://postmarkapp.com

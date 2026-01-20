@@ -124,15 +124,29 @@ export async function processIndexJob(
     if (!isResume) {
       logger.info(`🔄 Resetting progress counters for fresh start`)
       
-      // Delete ALL pages for this workspace to ensure clean state
+      // Build query for pages/documents to clear (either specific documents or entire workspace)
+      const clearQuery: any = { workspaceId: job.workspaceId }
+      if (job.documentIds && job.documentIds.length > 0) {
+        clearQuery.documentId = { $in: job.documentIds }
+        logger.info(`🎯 Targeting ${job.documentIds.length} specific document(s) for re-indexing`)
+      } else {
+        logger.info(`🌐 Targeting entire workspace for indexing`)
+      }
+      
+      // Delete pages for target documents to ensure clean state
       // NOTE: This is redundant with the deletion in startIndexingJob, but kept as a safety net
       // for any edge cases where processIndexJob is called directly
-      const deleteResult = await pages.deleteMany({ workspaceId: job.workspaceId })
+      const deleteResult = await pages.deleteMany(clearQuery)
       logger.info(`🧹 Safety check: deleted ${deleteResult.deletedCount} pages (should be 0 if already deleted)`)
       
-      // Clear all document indexing statuses
+      // Clear document indexing statuses (only for documents being processed)
+      const statusQuery: any = { workspaceId: job.workspaceId }
+      if (job.documentIds && job.documentIds.length > 0) {
+        statusQuery._id = { $in: job.documentIds }
+      }
+      
       const statusClearResult = await documents.updateMany(
-        { workspaceId: job.workspaceId },
+        statusQuery,
         { 
           $set: { 
             status: "queued",
@@ -141,7 +155,7 @@ export async function processIndexJob(
           $unset: { indexedAt: "" }
         }
       )
-      logger.info(`🧹 Cleared status for ${statusClearResult.modifiedCount} documents`)
+      logger.info(`🧹 Cleared status for ${statusClearResult.modifiedCount} document(s)`)
       
       await indexJobs.updateOne(
         { _id: job._id },
@@ -784,9 +798,18 @@ export async function startIndexingJob(
     )
   }
   
-  // Delete ALL existing pages for this workspace BEFORE creating the job
-  // This ensures a completely clean slate
-  const deleteResult = await pages.deleteMany({ workspaceId: new ObjectId(workspaceId) })
+  // Delete existing pages BEFORE creating the job to ensure a clean slate
+  // If documentIds are provided, only delete pages for those specific documents
+  // Otherwise, delete ALL pages for the workspace
+  const deleteQuery: any = { workspaceId: new ObjectId(workspaceId) }
+  if (options?.documentIds && options.documentIds.length > 0) {
+    deleteQuery.documentId = { $in: options.documentIds.map(id => new ObjectId(id)) }
+    logger.info(`🎯 Deleting pages for ${options.documentIds.length} specific document(s)`)
+  } else {
+    logger.info(`🌐 Deleting all pages for workspace`)
+  }
+  
+  const deleteResult = await pages.deleteMany(deleteQuery)
   logger.info(`🧹 Pre-deleted ${deleteResult.deletedCount} existing pages before starting new index`)
   
   // Create job

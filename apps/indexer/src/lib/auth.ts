@@ -52,6 +52,11 @@ export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) =
       return next(new Error("Unauthorized"))
     }
 
+    // Check if user account is active
+    if (!token.isActive) {
+      return next(new Error("Account not activated"))
+    }
+
     // Store user ID in socket data
     socket.data.userId = token.sub
     next()

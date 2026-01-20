@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
-import { FileSearch, FileText, Search, Settings, XCircle, X } from "lucide-react"
+import { FileSearch, XCircle, X } from "lucide-react"
 import type { Document as TraceDocument, Workspace, Role } from "@trace/shared"
 import DocumentUpload from "@/components/DocumentUpload"
 import AddFromUrlModal from "@/components/AddFromUrlModal"
 import ConfirmButton from "@/components/ConfirmButton"
 import IndexingProgress from "@/components/IndexingProgress"
 import DocumentsList from "@/components/DocumentsList"
-import WorkspaceLayout from "@/components/WorkspaceLayout"
 import { useIndexEvents, useEvents } from "@/contexts/EventContext"
 
 export default function DocumentsPage() {
@@ -195,11 +193,9 @@ export default function DocumentsPage() {
 
   if (isLoading) {
     return (
-      <WorkspaceLayout>
-        <div className="flex h-full items-center justify-center">
-          <div className="text-lg">Loading...</div>
-        </div>
-      </WorkspaceLayout>
+      <div className="flex h-full items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
     )
   }
 
@@ -208,69 +204,34 @@ export default function DocumentsPage() {
   }
 
   return (
-    <WorkspaceLayout>
-      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Error Banner */}
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start justify-between">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-              <button
-                onClick={() => setError(null)}
-                className="text-red-400 hover:text-red-600 dark:hover:text-red-300"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
+    <>
+      {/* Error Banner */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start justify-between">
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-400 hover:text-red-600 dark:hover:text-red-300"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
-          {/* Workspace Actions */}
-          {role === "owner" && (
-            <div className="flex justify-end mb-4">
-              <ConfirmButton
-                onConfirm={handleDeleteWorkspace}
-                className="text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-2 px-3 py-2"
-                confirmText="Yes, delete"
-                cancelText="Cancel"
-              >
-                <XCircle size={18} />
-                Delete Workspace
-              </ConfirmButton>
-            </div>
-          )}
-
-          {/* Tab Navigation */}
-          <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-            <nav className="-mb-px flex space-x-8">
-              <Link
-                href={`/workspaces/${params.id}/documents`}
-                className="border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600 dark:text-blue-400"
-              >
-                <div className="flex items-center gap-2">
-                  <FileText size={18} />
-                  Documents
-                </div>
-              </Link>
-              <Link
-                href={`/workspaces/${params.id}/search`}
-                className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-              >
-                <div className="flex items-center gap-2">
-                  <Search size={18} />
-                  Search
-                </div>
-              </Link>
-              <Link
-                href={`/workspaces/${params.id}/settings`}
-                className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-              >
-                <div className="flex items-center gap-2">
-                  <Settings size={18} />
-                  Settings
-                </div>
-              </Link>
-            </nav>
-          </div>
+      {/* Workspace Actions */}
+      {role === "owner" && (
+        <div className="flex justify-end mb-4">
+          <ConfirmButton
+            onConfirm={handleDeleteWorkspace}
+            className="text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-2 px-3 py-2"
+            confirmText="Yes, delete"
+            cancelText="Cancel"
+          >
+            <XCircle size={18} />
+            Delete Workspace
+          </ConfirmButton>
+        </div>
+      )}
 
           {/* Indexing Status Banner - Separate from documents */}
           {indexProgress && <IndexingProgress progress={indexProgress} />}
@@ -345,15 +306,13 @@ export default function DocumentsPage() {
             />
           </div>
 
-          <AddFromUrlModal
-            workspaceId={params.id as string}
-            isOpen={showUrlModal}
-            onClose={() => setShowUrlModal(false)}
-            onSuccess={fetchDocuments}
-          />
-        </div>
-      </div>
-    </WorkspaceLayout>
+      <AddFromUrlModal
+        workspaceId={params.id as string}
+        isOpen={showUrlModal}
+        onClose={() => setShowUrlModal(false)}
+        onSuccess={fetchDocuments}
+      />
+    </>
   )
 }
 
