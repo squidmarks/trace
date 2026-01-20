@@ -52,7 +52,7 @@ if [ -d "trace" ]; then
     cd trace
     git pull origin main
 else
-    git clone https://github.com/YOUR_GITHUB_USERNAME/trace.git
+    git clone https://github.com/squidmarks/trace.git
     cd trace
 fi
 
